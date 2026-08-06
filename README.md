@@ -5,7 +5,7 @@ Two catalogs, ranked daily:
 - **Top Movies Today** — top 20 US movies currently out digitally or on home release (TMDB `discover/movie`, `with_release_type=4|5`, region `US`), ranked by popularity. Theatrical-only movies are excluded.
 - **Top Shows Today** — top 20 shows from TMDB's daily trending list.
 
-Each poster is the base image from `btttr.cc` with a glossy rank number composited on top (falls back to TMDB's own poster if `btttr.cc` doesn't have that title).
+Each poster is the base image from `btttr.cc` with a glossy rank number composited on top (falls back to TMDB's own poster if `btttr.cc` doesn't have that title). Every title's imdb_id is round-tripped through TMDB's `/find` endpoint before it's included, so a stale or mismatched cross-reference gets dropped instead of showing the wrong movie/show once you click into it in Stremio.
 
 No cron jobs, no database. The catalog and poster endpoints set `Cache-Control: s-maxage=1800`, so Vercel's edge refreshes them automatically every 30 minutes. Zero maintenance once deployed.
 
@@ -42,11 +42,12 @@ api/
   catalog.js    -> /catalog/:type/:id.json
   poster.js     -> /poster/:type/:imdb/:rank.jpg
 lib/
-  tmdb.js       -> TMDB discover/trending + imdb_id resolution
+  tmdb.js       -> TMDB discover/trending + imdb_id resolution + /find round-trip verification
   badge.js      -> renders the glossy rank number and composites it onto the poster
+  cors.js       -> CORS headers required for Stremio to fetch these endpoints
 assets/
-  Anton-Regular.ttf  -> font used for the rank badge (bundled so rendering doesn't
-                        depend on fonts being installed on the server)
+  Inter-Black.ttf  -> font used for the rank badge (bundled so rendering doesn't
+                      depend on fonts being installed on the server)
 vercel.json     -> maps the clean Stremio-protocol URLs to the api/ functions
 ```
 
@@ -54,6 +55,7 @@ vercel.json     -> maps the clean Stremio-protocol URLs to the api/ functions
 
 - **Region**: hardcoded to `US` in `lib/tmdb.js` (both the release-type filter for movies and the general context). Change the `region` value there if you ever want a different market.
 - **"Digital or home release"**: TMDB release type `4` = Digital, `5` = Physical (per TMDB's own docs: 1 Premiere, 2 Theatrical limited, 3 Theatrical, 4 Digital, 5 Physical, 6 TV). If you also want to include limited theatrical re-releases or premiere dates, adjust `with_release_type` in `lib/tmdb.js`.
+- **ID accuracy**: for every candidate, `lib/tmdb.js` calls `/find/{imdb_id}` and confirms it resolves back to the same TMDB id with a matching (or near-matching, accents/subtitle-tolerant) title before including it. Anything that fails this check is silently dropped rather than risking a wrong title showing up when you open it in Stremio. This costs one extra TMDB request per candidate (20 per catalog build), well within TMDB's rate limits.
 - **btttr.cc outages**: if a poster fails to load from `btttr.cc`, `api/poster.js` automatically falls back to TMDB's own poster image so a catalog entry never shows a broken image.
-- **Rank badge look**: built as an SVG (glossy white→gray gradient fill, dark bevel stroke, dual drop-shadow) rendered via `@resvg/resvg-js` with the bundled Anton font, then composited with `sharp`. Tested against both light and dark poster backgrounds. Tweak the gradient stops / shadow values in `lib/badge.js` if you want it lighter, darker, or bigger.
-- This was verified end-to-end for image rendering (font, gradient, shadow, compositing) in a sandboxed test. The live TMDB and `btttr.cc` calls could not be tested from that sandbox (network is restricted there), so double check the first deploy's catalogs load correctly in Stremio — if `TMDB_API_KEY` is wrong you'll see a 500 from `/catalog/...json`.
+- **Rank badge look**: built as an SVG (glossy white→gray gradient fill, dark bevel stroke, dual drop-shadow) rendered via `@resvg/resvg-js` with the bundled Inter Black font, then composited with `sharp`. Single- and double-digit ranks use the same font size and anchor point so "4" and "20" carry equal visual weight. Tested against both light and dark poster backgrounds. Tweak the gradient stops / shadow values / `fontSize` in `lib/badge.js` if you want it lighter, darker, or a different size.
+- This was verified end-to-end for image rendering (font, gradient, shadow, compositing) and for the title-matching logic (unit-tested against accented titles, exact matches, and unrelated titles) in a sandboxed test. The live TMDB and `btttr.cc` calls could not be tested from that sandbox (network is restricted there), so double check the first deploy's catalogs load correctly in Stremio — if `TMDB_API_KEY` is wrong you'll see a 500 from `/catalog/...json`.
