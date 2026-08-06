@@ -2,7 +2,9 @@
 // Served at /manifest.json (see vercel.json rewrite).
 // Stremio addon manifest describing the two catalogs.
 
-module.exports = (req, res) => {
+const { withCors } = require('../lib/cors');
+
+module.exports = withCors((req, res) => {
   const manifest = {
     id: 'com.charles.topchartstoday',
     version: '1.0.0',
@@ -33,4 +35,4 @@ module.exports = (req, res) => {
   res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=3600, stale-while-revalidate=3600');
   res.setHeader('Content-Type', 'application/json');
   res.status(200).send(JSON.stringify(manifest));
-};
+});

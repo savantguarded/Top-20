@@ -5,12 +5,13 @@
 // and returns a cached JPEG.
 
 const { applyRankBadge } = require('../lib/badge');
+const { withCors } = require('../lib/cors');
 
 function posterUrl(imdbId) {
   return `https://btttr.cc/poster-n/imdb/poster-default/${imdbId}.jpg?tag=none`;
 }
 
-module.exports = async (req, res) => {
+module.exports = withCors(async (req, res) => {
   const { imdb, rank, fallback } = req.query;
   const rankNum = Math.max(1, parseInt(rank, 10) || 1);
 
@@ -51,4 +52,4 @@ module.exports = async (req, res) => {
   } catch (e) {
     res.status(500).json({ err: String(e && e.message ? e.message : e) });
   }
-};
+});

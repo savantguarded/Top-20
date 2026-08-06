@@ -6,8 +6,9 @@
 // or database needed.
 
 const { getTopMovies, getTopShows } = require('../lib/tmdb');
+const { withCors } = require('../lib/cors');
 
-module.exports = async (req, res) => {
+module.exports = withCors(async (req, res) => {
   const { type, id } = req.query;
 
   let items;
@@ -49,4 +50,4 @@ module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=1800, stale-while-revalidate=600');
   res.setHeader('Content-Type', 'application/json');
   res.status(200).send(JSON.stringify({ metas }));
-};
+});
