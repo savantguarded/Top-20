@@ -46,8 +46,12 @@ lib/
   badge.js      -> renders the glossy rank number and composites it onto the poster
   cors.js       -> CORS headers required for Stremio to fetch these endpoints
 assets/
-  Inter-Black.ttf  -> font used for the rank badge (bundled so rendering doesn't
-                      depend on fonts being installed on the server)
+  Inter-Black.ttf  -> font used for the rank badge and the icon (bundled so rendering
+                      doesn't depend on fonts being installed on the server)
+scripts/
+  generate-icon.js -> one-off script that rendered icon.png (re-run only if you want
+                       to redesign the icon; it's a static file otherwise, no runtime cost)
+icon.png        -> addon logo shown in Stremio's addon list, served as a plain static file
 vercel.json     -> maps the clean Stremio-protocol URLs to the api/ functions
 ```
 
@@ -55,7 +59,9 @@ vercel.json     -> maps the clean Stremio-protocol URLs to the api/ functions
 
 - **Region**: hardcoded to `US` in `lib/tmdb.js` (both the release-type filter for movies and the general context). Change the `region` value there if you ever want a different market.
 - **"Digital or home release"**: TMDB release type `4` = Digital, `5` = Physical (per TMDB's own docs: 1 Premiere, 2 Theatrical limited, 3 Theatrical, 4 Digital, 5 Physical, 6 TV). If you also want to include limited theatrical re-releases or premiere dates, adjust `with_release_type` in `lib/tmdb.js`.
-- **ID accuracy**: for every candidate, `lib/tmdb.js` calls `/find/{imdb_id}` and confirms it resolves back to the same TMDB id with a matching (or near-matching, accents/subtitle-tolerant) title before including it. Anything that fails this check is silently dropped rather than risking a wrong title showing up when you open it in Stremio. This costs one extra TMDB request per candidate (20 per catalog build), well within TMDB's rate limits.
+- **ID accuracy**: for every candidate, `lib/tmdb.js` calls `/find/{imdb_id}` and confirms it resolves back to the same TMDB id with a matching (or near-matching, accents/subtitle-tolerant) title before including it. Anything that fails this check is silently dropped rather than risking a wrong title showing up when you open it in Stremio.
+- **Always a full 20**: since that verification step (and the occasional title with no imdb_id at all) can drop a few candidates, both list functions pull a pool of 30 raw candidates from TMDB before filtering down to the 20 that pass, so the catalog stays full even after a few get rejected. If TMDB ever has fewer than 20 valid, verified candidates for a given day, you'll get however many pass instead of a hard failure. Adjust `POOL_SIZE` in `lib/tmdb.js` if you want a bigger safety margin.
+- **TMDB attribution**: the manifest description includes TMDB's required "This product uses the TMDB API but is not endorsed or certified by TMDB" notice, per their API Terms of Use.
 - **btttr.cc outages**: if a poster fails to load from `btttr.cc`, `api/poster.js` automatically falls back to TMDB's own poster image so a catalog entry never shows a broken image.
 - **Rank badge look**: built as an SVG (glossy white→gray gradient fill, dark bevel stroke, dual drop-shadow) rendered via `@resvg/resvg-js` with the bundled Inter Black font, then composited with `sharp`. Single- and double-digit ranks use the same font size and anchor point so "4" and "20" carry equal visual weight. Tested against both light and dark poster backgrounds. Tweak the gradient stops / shadow values / `fontSize` in `lib/badge.js` if you want it lighter, darker, or a different size.
 - This was verified end-to-end for image rendering (font, gradient, shadow, compositing) and for the title-matching logic (unit-tested against accented titles, exact matches, and unrelated titles) in a sandboxed test. The live TMDB and `btttr.cc` calls could not be tested from that sandbox (network is restricted there), so double check the first deploy's catalogs load correctly in Stremio — if `TMDB_API_KEY` is wrong you'll see a 500 from `/catalog/...json`.

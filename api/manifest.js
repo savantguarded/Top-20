@@ -5,11 +5,17 @@
 const { withCors } = require('../lib/cors');
 
 module.exports = withCors((req, res) => {
+  const host = req.headers['x-forwarded-host'] || req.headers.host;
+  const base = `https://${host}`;
+
   const manifest = {
     id: 'com.charles.topchartstoday',
     version: '1.0.0',
     name: 'Top Charts Today',
-    description: 'Top 20 movies (digital/home release only) and top 20 shows, ranked daily via TMDB, US region.',
+    description:
+      'Top 20 movies (digital/home release only) and top 20 shows, ranked daily via TMDB, US region. ' +
+      'This product uses the TMDB API but is not endorsed or certified by TMDB.',
+    logo: `${base}/icon.png`,
     resources: ['catalog'],
     types: ['movie', 'series'],
     catalogs: [
