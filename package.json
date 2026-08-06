@@ -1,0 +1,14 @@
+{
+  "name": "topcharts-addon",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Stremio addon: Top Movies Today (digital/home release, US) and Top Shows Today, ranked via TMDB with glossy rank-badge posters.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "sharp": "^0.35.3"
+  }
+}
