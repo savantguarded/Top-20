@@ -1,9 +1,9 @@
 // api/catalog.js
 // Served at /catalog/:type/:id.json (see vercel.json rewrite -> ?type=&id=).
 // Builds the top-20 list from TMDB, points each poster at our own /poster
-// endpoint (which overlays the rank badge), and lets Vercel's edge cache
-// hold the response for 30 minutes so it refreshes itself with no cron job
-// or database needed.
+// endpoint (which overlays the rank badge and status pill), and lets Vercel's
+// edge cache hold the response for 30 minutes so it refreshes itself with no
+// cron job or database needed.
 
 const { getTopMovies, getTopShows } = require('../lib/tmdb');
 const { withCors } = require('../lib/cors');
@@ -34,6 +34,9 @@ module.exports = withCors(async (req, res) => {
     const params = new URLSearchParams();
     if (item.poster_path) {
       params.set('fallback', `https://image.tmdb.org/t/p/w500${item.poster_path}`);
+    }
+    if (item.context) {
+      params.set('ctx', item.context);
     }
     const qs = params.toString();
     return {

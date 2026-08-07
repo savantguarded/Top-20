@@ -1,10 +1,11 @@
 // api/poster.js
 // Served at /poster/:type/:imdb/:rank.jpg (see vercel.json rewrite -> ?type=&imdb=&rank=).
 // Fetches the base poster from btttr.cc (imdb-keyed), falls back to TMDB's own
-// poster if that source doesn't have the title, overlays the glossy rank badge,
-// and returns a cached JPEG.
+// poster if that source doesn't have the title, overlays the glossy rank badge
+// in the top-left corner plus a bottom status pill (e.g. "Just Added", "New Episode",
+// passed in via ?ctx=), and returns a cached JPEG.
 
-const { applyRankBadge } = require('../lib/badge');
+const { applyOverlays } = require('../lib/badge');
 const { withCors } = require('../lib/cors');
 
 function posterUrl(imdbId) {
@@ -12,7 +13,7 @@ function posterUrl(imdbId) {
 }
 
 module.exports = withCors(async (req, res) => {
-  const { imdb, rank, fallback } = req.query;
+  const { imdb, rank, fallback, ctx } = req.query;
   const rankNum = Math.max(1, parseInt(rank, 10) || 1);
 
   if (!imdb) {
@@ -44,7 +45,7 @@ module.exports = withCors(async (req, res) => {
   }
 
   try {
-    const out = await applyRankBadge(posterBuffer, rankNum);
+    const out = await applyOverlays(posterBuffer, { rank: rankNum, statusLabel: ctx || null });
     res.setHeader('Content-Type', 'image/jpeg');
     // Matches the 30-minute catalog refresh cadence; stays servable well past that if TMDB/btttr.cc hiccup.
     res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=1800, stale-while-revalidate=86400');
