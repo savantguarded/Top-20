@@ -2,7 +2,7 @@
 // Served at /catalog/:type/:id.json (see vercel.json rewrite -> ?type=&id=).
 // Builds the top-20 list from TMDB, points each poster at our own /poster
 // endpoint (which overlays the rank badge and status pill), and lets Vercel's
-// edge cache hold the response for 30 minutes so it refreshes itself with no
+// edge cache hold the response for 1 hour so it refreshes itself with no
 // cron job or database needed.
 
 const { getTopMovies, getTopShows } = require('../lib/tmdb');
@@ -46,11 +46,18 @@ module.exports = withCors(async (req, res) => {
       releaseInfo: item.releaseInfo || undefined,
       poster: `${base}/poster/${type}/${item.imdbId}/${rank}.jpg${qs ? `?${qs}` : ''}`,
       posterShape: 'poster',
+      // Populated straight from the TMDB details we already fetched while resolving this
+      // item (see resolveMovie/resolveShow in lib/tmdb.js), so Nuvio has full metadata
+      // immediately instead of depending on a separate meta addon resolving in time.
+      description: item.description || undefined,
+      genres: item.genres && item.genres.length ? item.genres : undefined,
+      imdbRating: item.imdbRating || undefined,
+      runtime: item.runtime || undefined,
     };
   });
 
-  // 30-minute edge cache, background revalidation, zero maintenance.
-  res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=1800, stale-while-revalidate=600');
+  // 1-hour edge cache, background revalidation, zero maintenance.
+  res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=3600, stale-while-revalidate=1200');
   res.setHeader('Content-Type', 'application/json');
   res.status(200).send(JSON.stringify({ metas }));
 });

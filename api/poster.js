@@ -47,8 +47,8 @@ module.exports = withCors(async (req, res) => {
   try {
     const out = await applyOverlays(posterBuffer, { rank: rankNum, statusLabel: ctx || null });
     res.setHeader('Content-Type', 'image/jpeg');
-    // Matches the 30-minute catalog refresh cadence; stays servable well past that if TMDB/btttr.cc hiccup.
-    res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=1800, stale-while-revalidate=86400');
+    // Matches the 1-hour catalog refresh cadence; stays servable well past that if TMDB/btttr.cc hiccup.
+    res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400');
     res.status(200).send(out);
   } catch (e) {
     res.status(500).json({ err: String(e && e.message ? e.message : e) });
