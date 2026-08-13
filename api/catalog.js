@@ -38,6 +38,9 @@ module.exports = withCors(async (req, res) => {
     if (item.context) {
       params.set('ctx', item.context);
     }
+    if (item.provider && item.provider.logo) {
+      params.set('providerLogo', item.provider.logo);
+    }
     const qs = params.toString();
     return {
       id: item.imdbId,
