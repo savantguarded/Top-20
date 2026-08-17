@@ -1,9 +1,19 @@
 // api/catalog.js
 // Served at /catalog/:type/:id.json (see vercel.json rewrite -> ?type=&id=).
-// Builds the top-20 list from TMDB, points each poster at our own /poster
-// endpoint (which overlays the rank badge and status pill), and lets Vercel's
-// edge cache hold the response for 1 hour so it refreshes itself with no
-// cron job or database needed.
+// Builds the top-20 list from TMDB and returns a minimal Stremio "meta preview"
+// per item -- id, type, name, poster, background, releaseInfo -- and lets
+// Vercel's edge cache hold the response for 1 hour so it refreshes itself with
+// no cron job or database needed.
+//
+// Deliberately does NOT include description/genres/imdbRating/runtime/logo --
+// this addon only declares `resources: ['catalog']` (api/manifest.js), so those
+// stay aiometadata's job on the real detail page. `background` (a plain TMDB
+// backdrop, no overlay) exists specifically so Nuvio's home-screen hero carousel
+// and landscape-mode catalog cards have a real image to show -- without it they
+// fall back to `poster`, which has the rank badge burned into the top-left
+// corner and looked wrong blown up to hero size (confirmed against Nuvio's own
+// source: HomeCatalogParser.kt reads background/banner, HomeHeroSection.kt falls
+// back to poster when both are absent). Full history in the project's progress log.
 
 const { getTopMovies, getTopShows } = require('../lib/tmdb');
 const { withCors } = require('../lib/cors');
@@ -46,25 +56,9 @@ module.exports = withCors(async (req, res) => {
       releaseInfo: item.releaseInfo || undefined,
       poster: `${base}/poster/${type}/${item.imdbId}/${rank}.jpg${qs ? `?${qs}` : ''}`,
       posterShape: 'poster',
-      // Plain TMDB backdrop, no overlay -- unlike `poster`, this is never run through
-      // our badge/pill compositing. Confirmed against Nuvio's own source
-      // (HomeCatalogSection.kt / HomeHeroSection.kt): when a catalog entry has no
-      // `background` (or `banner`), Nuvio's home-screen hero carousel and any
-      // landscape-mode catalog card fall back to rendering `poster` at hero width/
-      // aspect ratio instead. Since our `poster` has the rank badge burned into the
-      // top-left corner, that fallback was blowing the badge number up into a huge,
-      // wrong-looking "background" -- that's what was actually clashing, not a race
-      // with aiometadata (this field is only read by Nuvio's catalog-preview parser,
-      // never by its meta-detail parser, so it can't compete with aiometadata's own
-      // per-title background on the actual detail page -- that stays 100% aiometadata's).
       background: item.backdrop_path
         ? `https://image.tmdb.org/t/p/w1280${item.backdrop_path}`
         : undefined,
-      // Deliberately otherwise a minimal Stremio "meta preview" object: id, type, name,
-      // poster, background, releaseInfo. Earlier versions also sent description/genres/
-      // imdbRating/runtime here so Nuvio would have something to show even without a
-      // separate meta addon -- removed so aiometadata stays the sole source for those
-      // on the actual detail page.
     };
   });
 
