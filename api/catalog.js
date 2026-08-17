@@ -46,16 +46,25 @@ module.exports = withCors(async (req, res) => {
       releaseInfo: item.releaseInfo || undefined,
       poster: `${base}/poster/${type}/${item.imdbId}/${rank}.jpg${qs ? `?${qs}` : ''}`,
       posterShape: 'poster',
-      // Deliberately a minimal Stremio "meta preview" object: id, type, name, poster,
-      // releaseInfo. Earlier versions also sent description/genres/imdbRating/runtime
-      // here so Nuvio would have something to show even without a separate meta addon.
-      // That backfired once a real metadata addon (aiometadata) was installed: Nuvio was
-      // using this catalog entry's own data (and, worse, synthesizing a background/logo
-      // from our rank-badge poster) as the title's metadata instead of waiting for
-      // aiometadata's dedicated background/logo/description. This addon only declares
-      // `resources: ['catalog']` (see api/manifest.js) -- it was never meant to compete
-      // with a real meta addon, so keep this object as bare as the protocol allows and
-      // let aiometadata own everything past the poster + rank badge.
+      // Plain TMDB backdrop, no overlay -- unlike `poster`, this is never run through
+      // our badge/pill compositing. Confirmed against Nuvio's own source
+      // (HomeCatalogSection.kt / HomeHeroSection.kt): when a catalog entry has no
+      // `background` (or `banner`), Nuvio's home-screen hero carousel and any
+      // landscape-mode catalog card fall back to rendering `poster` at hero width/
+      // aspect ratio instead. Since our `poster` has the rank badge burned into the
+      // top-left corner, that fallback was blowing the badge number up into a huge,
+      // wrong-looking "background" -- that's what was actually clashing, not a race
+      // with aiometadata (this field is only read by Nuvio's catalog-preview parser,
+      // never by its meta-detail parser, so it can't compete with aiometadata's own
+      // per-title background on the actual detail page -- that stays 100% aiometadata's).
+      background: item.backdrop_path
+        ? `https://image.tmdb.org/t/p/w1280${item.backdrop_path}`
+        : undefined,
+      // Deliberately otherwise a minimal Stremio "meta preview" object: id, type, name,
+      // poster, background, releaseInfo. Earlier versions also sent description/genres/
+      // imdbRating/runtime here so Nuvio would have something to show even without a
+      // separate meta addon -- removed so aiometadata stays the sole source for those
+      // on the actual detail page.
     };
   });
 
