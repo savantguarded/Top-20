@@ -46,13 +46,16 @@ module.exports = withCors(async (req, res) => {
       releaseInfo: item.releaseInfo || undefined,
       poster: `${base}/poster/${type}/${item.imdbId}/${rank}.jpg${qs ? `?${qs}` : ''}`,
       posterShape: 'poster',
-      // Populated straight from the TMDB details we already fetched while resolving this
-      // item (see resolveMovie/resolveShow in lib/tmdb.js), so Nuvio has full metadata
-      // immediately instead of depending on a separate meta addon resolving in time.
-      description: item.description || undefined,
-      genres: item.genres && item.genres.length ? item.genres : undefined,
-      imdbRating: item.imdbRating || undefined,
-      runtime: item.runtime || undefined,
+      // Deliberately a minimal Stremio "meta preview" object: id, type, name, poster,
+      // releaseInfo. Earlier versions also sent description/genres/imdbRating/runtime
+      // here so Nuvio would have something to show even without a separate meta addon.
+      // That backfired once a real metadata addon (aiometadata) was installed: Nuvio was
+      // using this catalog entry's own data (and, worse, synthesizing a background/logo
+      // from our rank-badge poster) as the title's metadata instead of waiting for
+      // aiometadata's dedicated background/logo/description. This addon only declares
+      // `resources: ['catalog']` (see api/manifest.js) -- it was never meant to compete
+      // with a real meta addon, so keep this object as bare as the protocol allows and
+      // let aiometadata own everything past the poster + rank badge.
     };
   });
 
