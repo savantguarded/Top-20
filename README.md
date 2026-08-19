@@ -65,7 +65,7 @@ Prefer editing raw JSON instead? Skip the token/password steps above and just op
 
 | Key | Default | What it does |
 | --- | --- | --- |
-| `posterUrlTemplate` | btttr.cc URL (see `lib/config.js`) | Base poster image source. `{imdbId}` is replaced with the title's IMDb id. Point this at any imdb-keyed poster URL — TMDB's own poster stays the automatic fallback if this one 404s. |
+| `posterUrlTemplate` | btttr.cc URL (see `lib/config.js`) | Base poster image source. `{imdbId}` or `{id}` (either works) is replaced with the title's IMDb id. Point this at any imdb-keyed poster URL — TMDB's own poster is the automatic fallback if this one 404s, errors, or is too slow (8s timeout) to answer. |
 | `region` | `"US"` | Country code used to check digital/physical release dates and show premieres. |
 | `catalogSize` | `20` | How many items each catalog tries to fill to. |
 | `maxPages` | `6` | Safety cap on how many pages of TMDB's trending list to search while filling the catalog. |

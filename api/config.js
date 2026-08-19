@@ -23,7 +23,7 @@ const FIELDS = [
     key: 'posterUrlTemplate',
     label: 'Poster provider URL template',
     type: 'text',
-    hint: 'Use {imdbId} as a placeholder, e.g. https://btttr.cc/poster-n/imdb/poster-default/{imdbId}.jpg?tag=none',
+    hint: 'Use {imdbId} or {id} as a placeholder (both work), e.g. https://btttr.cc/poster-n/imdb/poster-default/{imdbId}.jpg?tag=none',
     path: ['posterUrlTemplate'],
   },
   {
