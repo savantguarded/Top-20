@@ -78,9 +78,19 @@ module.exports = withCors(async (req, res) => {
   try {
     const out = await applyOverlays(posterBuffer, { rank: rankNum, statusLabel: ctx || null });
     res.setHeader('Content-Type', 'image/jpeg');
-    // Matches the 1-hour catalog refresh cadence; stays servable well past that if the
-    // poster provider or TMDB hiccups.
-    res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400');
+    // Deliberately much shorter than api/catalog.js's own 1-hour cache. The catalog listing
+    // (which titles are in the Top 20, their rank order) is meant to only change on that slow
+    // hourly cadence -- but a poster provider swap via /config should be visible on its own,
+    // fast timeline, independent of when the catalog next refreshes. Since a client's already-
+    // cached catalog.json can keep pointing at the exact same poster URL for up to that full
+    // hour (see api/catalog.js's `pv` tag, which only changes when the catalog itself
+    // regenerates), this endpoint's own cache is what actually controls how fast a provider
+    // change reaches real users: at 60s, an edited posterUrlTemplate shows up in freshly-
+    // requested posters within about a minute, not up to a day. stale-while-revalidate gives a
+    // short grace window so a burst of requests for the same poster doesn't all re-fetch from
+    // the provider at once. Cheap to keep this short -- worst case is one re-fetch per unique
+    // poster URL per minute, not per request.
+    res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=300');
     res.status(200).send(out);
   } catch (e) {
     res.status(500).json({ err: String(e && e.message ? e.message : e) });
