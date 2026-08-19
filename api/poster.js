@@ -32,14 +32,19 @@ async function fetchWithTimeout(url, timeoutMs) {
   }
 }
 
-/** Fill the imdb id into the configured template. Accepts either `{imdbId}` (documented,
- * matches this addon's own README/config-page hint) or `{id}` (what several third-party
- * poster services use in their own docs, e.g. RPDB-style or custom providers) -- a user
- * pasting a provider's own example URL verbatim is exactly as likely to use one as the
- * other, so both are honored rather than silently doing nothing on a mismatch. */
+/** Fill the imdb id into the configured template. Originally only accepted `{imdbId}` or
+ * `{id}` -- but a real user then pasted `{imdb_id}` (underscore) from a provider's own docs,
+ * which matched neither, so nothing got substituted, the request hit a broken literal URL,
+ * and (with no error surfaced anywhere) it silently looked identical to "the provider is
+ * down" -- fell straight through to the TMDB fallback. Rather than keep whack-a-moling
+ * individual spellings, replace ANY `{...}` token that contains "id" (case-insensitive) --
+ * covers `{imdbId}`, `{id}`, `{imdb_id}`, `{IMDB_ID}`, `{ImdbID}`, and anything else close
+ * enough that a person would reasonably expect it to work when pasting a provider's example
+ * URL verbatim. A poster-provider template only ever has one such placeholder in practice,
+ * so being permissive here is safe and strictly better than silently doing nothing. */
 function buildPosterUrl(template, imdbId) {
   const encoded = encodeURIComponent(imdbId);
-  return template.replace(/\{imdbId\}/g, encoded).replace(/\{id\}/g, encoded);
+  return template.replace(/\{[^{}]*id[^{}]*\}/gi, encoded);
 }
 
 module.exports = withCors(async (req, res) => {
