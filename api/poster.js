@@ -1,15 +1,18 @@
 // api/poster.js
 // Served at /poster/:type/:imdb/:rank.jpg (see vercel.json rewrite -> ?type=&imdb=&rank=).
-// Fetches the base poster from btttr.cc (imdb-keyed), falls back to TMDB's own
-// poster if that source doesn't have the title, overlays the glossy rank badge
-// in the top-left corner plus a bottom status pill (e.g. "Just Added", "New Episode",
-// passed in via ?ctx=), and returns a cached JPEG.
+// Fetches the base poster from the configured provider (imdb-keyed URL template, see
+// lib/config.js -- swap providers there or live in Vercel's Edge Config, no code change,
+// no redeploy), falls back to TMDB's own poster if that source doesn't have the title,
+// overlays the glossy rank badge in the top-left corner plus a bottom status pill
+// (e.g. "Just Added", "New Episode", passed in via ?ctx=), and returns a cached JPEG.
 
 const { applyOverlays } = require('../lib/badge');
 const { withCors } = require('../lib/cors');
+const { getConfig } = require('../lib/config');
 
-function posterUrl(imdbId) {
-  return `https://btttr.cc/poster-n/imdb/poster-default/${imdbId}.jpg?tag=none`;
+/** Fill `{imdbId}` in the configured template with the actual imdb id. */
+function buildPosterUrl(template, imdbId) {
+  return template.replace(/\{imdbId\}/g, encodeURIComponent(imdbId));
 }
 
 module.exports = withCors(async (req, res) => {
@@ -21,10 +24,11 @@ module.exports = withCors(async (req, res) => {
     return;
   }
 
+  const cfg = await getConfig();
   let posterBuffer = null;
 
   try {
-    const r = await fetch(posterUrl(imdb));
+    const r = await fetch(buildPosterUrl(cfg.posterUrlTemplate, imdb));
     if (r.ok) posterBuffer = Buffer.from(await r.arrayBuffer());
   } catch {
     // fall through to fallback
@@ -47,7 +51,8 @@ module.exports = withCors(async (req, res) => {
   try {
     const out = await applyOverlays(posterBuffer, { rank: rankNum, statusLabel: ctx || null });
     res.setHeader('Content-Type', 'image/jpeg');
-    // Matches the 1-hour catalog refresh cadence; stays servable well past that if TMDB/btttr.cc hiccup.
+    // Matches the 1-hour catalog refresh cadence; stays servable well past that if the
+    // poster provider or TMDB hiccups.
     res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400');
     res.status(200).send(out);
   } catch (e) {
