@@ -15,7 +15,7 @@
 // Config store belongs to a Vercel team rather than a personal account, also set
 // VERCEL_TEAM_ID. Both are separate from TMDB_API_KEY and EDGE_CONFIG.
 
-const { getConfig } = require('../lib/config');
+const { getConfig, DEFAULTS, mergeDeep, primeCache } = require('../lib/config');
 const { withCors } = require('../lib/cors');
 
 const FIELDS = [
@@ -269,6 +269,7 @@ module.exports = withCors(async (req, res) => {
 
   let message = null;
   let error = null;
+  let justWrittenCfg = null;
 
   if (req.method === 'POST') {
     try {
@@ -277,6 +278,7 @@ module.exports = withCors(async (req, res) => {
 
       if (action === 'reset') {
         await writeEdgeConfigItem('topTwentyConfig', undefined);
+        justWrittenCfg = mergeDeep(DEFAULTS, {});
         message = 'Reset to defaults.';
       } else {
         const overrides = {};
@@ -294,14 +296,23 @@ module.exports = withCors(async (req, res) => {
           }
         }
         await writeEdgeConfigItem('topTwentyConfig', overrides);
+        justWrittenCfg = mergeDeep(DEFAULTS, overrides);
         message = 'Saved. Give it a few seconds to take effect.';
       }
+      // Don't trust a getConfig() re-read here -- it can still be serving a value
+      // cached from just before this write (up to CACHE_MS old), which makes a
+      // successful save look like it silently reverted (the actual bug this fixes).
+      // We already know exactly what we just wrote, so render that directly, and
+      // prime the shared cache with it so every other request hitting this same warm
+      // instance -- including the very next page load -- sees the new value right
+      // away instead of up to CACHE_MS late.
+      primeCache(justWrittenCfg);
     } catch (e) {
       error = String(e && e.message ? e.message : e);
     }
   }
 
-  const cfg = await getConfig();
+  const cfg = justWrittenCfg || (await getConfig());
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
   res.status(200).send(renderPage({ key: providedKey, cfg, message, error }));
