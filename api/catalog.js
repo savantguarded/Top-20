@@ -15,8 +15,10 @@
 // source: HomeCatalogParser.kt reads background/banner, HomeHeroSection.kt falls
 // back to poster when both are absent). Full history in the project's progress log.
 
+const crypto = require('crypto');
 const { getTopMovies, getTopShows } = require('../lib/tmdb');
 const { withCors } = require('../lib/cors');
+const { getConfig } = require('../lib/config');
 
 module.exports = withCors(async (req, res) => {
   const { type, id } = req.query;
@@ -39,22 +41,36 @@ module.exports = withCors(async (req, res) => {
   const host = req.headers['x-forwarded-host'] || req.headers.host;
   const base = `https://${host}`;
 
+  // api/poster.js is cached at Vercel's edge for up to an hour, keyed by its full request
+  // URL -- and that URL is otherwise identical (same type/imdb/rank) no matter which poster
+  // provider is configured. Without something to change in the URL, swapping providers via
+  // /config wouldn't show up for real users until each already-cached poster URL happened to
+  // fall out of cache on its own, up to an hour+ later. `pv` (poster version) is a short tag
+  // derived from the current posterUrlTemplate, included on every poster URL this endpoint
+  // hands out -- so the moment the template changes, every poster URL changes too, and the
+  // edge cache treats them as brand new (never-cached) requests instead of serving stale art.
+  const cfg = await getConfig();
+  const posterTag = crypto.createHash('sha1').update(cfg.posterUrlTemplate || '').digest('hex').slice(0, 8);
+
   const metas = items.map((item, idx) => {
     const rank = idx + 1;
     const params = new URLSearchParams();
+    params.set('pv', posterTag);
+    if (item.tmdbId != null) {
+      params.set('tmdbId', item.tmdbId);
+    }
     if (item.poster_path) {
       params.set('fallback', `https://image.tmdb.org/t/p/w500${item.poster_path}`);
     }
     if (item.context) {
       params.set('ctx', item.context);
     }
-    const qs = params.toString();
     return {
       id: item.imdbId,
       type,
       name: item.name,
       releaseInfo: item.releaseInfo || undefined,
-      poster: `${base}/poster/${type}/${item.imdbId}/${rank}.jpg${qs ? `?${qs}` : ''}`,
+      poster: `${base}/poster/${type}/${item.imdbId}/${rank}.jpg?${params.toString()}`,
       posterShape: 'poster',
       background: item.backdrop_path
         ? `https://image.tmdb.org/t/p/w1280${item.backdrop_path}`
