@@ -1,57 +1,19 @@
 // api/poster.js
 // Served at /poster/:type/:imdb/:rank.jpg (see vercel.json rewrite -> ?type=&imdb=&rank=).
+// Fetches the base poster from btttr.cc (imdb-keyed), falls back to TMDB's own
+// poster if that source doesn't have the title, overlays the glossy rank badge
+// in the top-left corner plus a bottom status pill (e.g. "Just Added", "New Episode",
+// passed in via ?ctx=), and returns a cached JPEG.
 
 const { applyOverlays } = require('../lib/badge');
 const { withCors } = require('../lib/cors');
-const { getConfig } = require('../lib/config');
 
-const PRIMARY_FETCH_TIMEOUT_MS = 8000;
-const FALLBACK_FETCH_TIMEOUT_MS = 5000;
-
-async function fetchWithTimeout(url, timeoutMs) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(url, { signal: controller.signal });
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-/**
- * Replaces provider template placeholders in order:
- * 1. Specific API keys ({tmdb_key}, {mdblist_key}) from process.env
- * 2. Media type ({type}) -> 'movie' or 'series'
- * 3. Specific TMDB ID ({tmdb_id}, {tmdbId})
- * 4. Fallback IMDb ID for any general `{...id...}` token ({id}, {imdb_id}, etc.)
- */
-function buildPosterUrl(template, { imdbId, tmdbId, type }) {
-  if (!template) return '';
-  let url = template;
-
-  const tmdbKey = process.env.TMDB_API_KEY || '';
-  const mdblistKey = process.env.MDBLIST_API_KEY || process.env.MDBLIST_KEY || '';
-
-  url = url.replace(/\{tmdb_key\}/gi, encodeURIComponent(tmdbKey));
-  url = url.replace(/\{mdblist_key\}/gi, encodeURIComponent(mdblistKey));
-
-  if (type) {
-    url = url.replace(/\{type\}/gi, encodeURIComponent(type));
-  }
-
-  if (tmdbId) {
-    url = url.replace(/\{tmdb_?id\}/gi, encodeURIComponent(tmdbId));
-  }
-
-  if (imdbId) {
-    url = url.replace(/\{[^{}]*id[^{}]*\}/gi, encodeURIComponent(imdbId));
-  }
-
-  return url;
+function posterUrl(imdbId) {
+  return `https://btttr.cc/poster-n/imdb/poster-default/${imdbId}.jpg?tag=none`;
 }
 
 module.exports = withCors(async (req, res) => {
-  const { type, imdb, rank, fallback, ctx, tmdbId } = req.query;
+  const { imdb, rank, fallback, ctx } = req.query;
   const rankNum = Math.max(1, parseInt(rank, 10) || 1);
 
   if (!imdb) {
@@ -59,20 +21,18 @@ module.exports = withCors(async (req, res) => {
     return;
   }
 
-  const cfg = await getConfig();
   let posterBuffer = null;
 
   try {
-    const targetUrl = buildPosterUrl(cfg.posterUrlTemplate, { imdbId: imdb, tmdbId, type });
-    const r = await fetchWithTimeout(targetUrl, PRIMARY_FETCH_TIMEOUT_MS);
+    const r = await fetch(posterUrl(imdb));
     if (r.ok) posterBuffer = Buffer.from(await r.arrayBuffer());
   } catch {
-    // Timed out, network error, or aborted -- fall through to the TMDB fallback below.
+    // fall through to fallback
   }
 
   if (!posterBuffer && fallback) {
     try {
-      const r2 = await fetchWithTimeout(fallback, FALLBACK_FETCH_TIMEOUT_MS);
+      const r2 = await fetch(fallback);
       if (r2.ok) posterBuffer = Buffer.from(await r2.arrayBuffer());
     } catch {
       // no poster available at all
@@ -87,7 +47,8 @@ module.exports = withCors(async (req, res) => {
   try {
     const out = await applyOverlays(posterBuffer, { rank: rankNum, statusLabel: ctx || null });
     res.setHeader('Content-Type', 'image/jpeg');
-    res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=300');
+    // Matches the 1-hour catalog refresh cadence; stays servable well past that if TMDB/btttr.cc hiccup.
+    res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400');
     res.status(200).send(out);
   } catch (e) {
     res.status(500).json({ err: String(e && e.message ? e.message : e) });
