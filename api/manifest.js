@@ -10,10 +10,11 @@ module.exports = withCors((req, res) => {
 
   const manifest = {
     id: 'com.charles.topchartstoday',
-    version: '1.0.0',
+    version: '1.1.0',
     name: 'Top Charts Today',
     description:
       'Top 20 movies (digital/home release only) and top 20 shows, ranked daily via TMDB, US region. ' +
+      'Created by Charles. ' +
       'This product uses the TMDB API but is not endorsed or certified by TMDB.',
     logo: `${base}/icon.png`,
     resources: ['catalog'],
