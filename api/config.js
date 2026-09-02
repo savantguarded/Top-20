@@ -1,19 +1,20 @@
 // api/config.js
 // Served at /backstage (see vercel.json rewrite -- deliberately not the more guessable
-// "/config"). A small password-protected HTML page for
-// changing the addon's poster provider (a URL template) without touching Vercel's dashboard
-// or the GitHub repo -- just one field and a Save/Reset button. Reads/writes the same
-// "topTwentyConfig" Edge Config item that lib/config.js reads from -- see that file and the
-// README's "Live config" section for the full picture and one-time setup. Every other live
-// setting (region, catalog size, status-label day windows) still lives in that same Edge
-// Config item and still works exactly as before; this page just doesn't expose a control for
-// them anymore (deliberately simplified) -- edit them directly in Vercel's Edge Config
-// "Items" tab if you ever need to.
+// "/config"). A small HTML page for changing the addon's poster provider (a URL template)
+// without touching Vercel's dashboard or the GitHub repo -- just one field and a Save/Reset
+// button. Reads/writes the same "topTwentyConfig" Edge Config item that lib/config.js reads
+// from -- see that file and the README's "Live config" section for the full picture and
+// one-time setup. Every other live setting (region, catalog size, status-label day windows)
+// still lives in that same Edge Config item and still works exactly as before; this page
+// just doesn't expose a control for them anymore (deliberately simplified) -- edit them
+// directly in Vercel's Edge Config "Items" tab if you ever need to.
 //
-// Protection: a single shared password, set as the CONFIG_PASSWORD environment variable.
-// Bookmark this page as /backstage?key=<your password> -- viewing and saving both require it.
-// Deliberately simple (no accounts, no sessions) since this is a single-owner tool; treat a
-// URL with the key in it like a password itself, don't share it.
+// NOT password-protected (removed at the user's explicit request, so the URL itself stays
+// easy to remember/bookmark -- previously gated by a CONFIG_PASSWORD query-string key).
+// Anyone who has or guesses the /backstage URL can view and change the poster provider.
+// That's the accepted tradeoff here: low stakes (worst case someone points the poster
+// template somewhere broken, one save away from fixing), but worth knowing before sharing
+// this addon's manifest URL publicly, since /backstage is one guess away from it.
 //
 // Writing to Edge Config needs a Vercel API token (Edge Config is read-only from application
 // code otherwise) -- see README for how to create one. Set as VERCEL_API_TOKEN. If the Edge
@@ -106,7 +107,7 @@ async function parseFormBody(req) {
   return Object.fromEntries(new URLSearchParams(raw));
 }
 
-function renderPage({ key, cfg, message, error }) {
+function renderPage({ cfg, message, error }) {
   const rows = FIELDS.map((f) => {
     const value = getPath(cfg, f.path);
     return `
@@ -162,45 +163,20 @@ function renderPage({ key, cfg, message, error }) {
     <p class="sub">Changes here apply within a few seconds. No redeploy, nothing to push to GitHub.</p>
     ${message ? `<div class="banner ok">${escapeHtml(message)}</div>` : ''}
     ${error ? `<div class="banner err">${escapeHtml(error)}</div>` : ''}
-    <form method="POST" action="/backstage?key=${encodeURIComponent(key)}">
+    <form method="POST" action="/backstage">
       ${rows}
       <div class="actions">
         <button class="save" type="submit" name="action" value="save">Save changes</button>
         <button class="reset" type="submit" name="action" value="reset">Reset poster to default</button>
       </div>
     </form>
-    <div class="foot">"Reset poster to default" always takes the poster provider back to btttr.cc (${escapeHtml(DEFAULTS.posterUrlTemplate)}) and doesn't touch anything else. Bookmark this page's exact URL (with your key) to come back later. Anyone with this URL can change the addon's settings, so don't share it.</div>
+    <div class="foot">"Reset poster to default" always takes the poster provider back to btttr.cc (${escapeHtml(DEFAULTS.posterUrlTemplate)}) and doesn't touch anything else. This page has no password -- anyone with the /backstage link can view and change it, so don't post this URL anywhere public.</div>
   </div>
 </body>
 </html>`;
 }
 
 module.exports = withCors(async (req, res) => {
-  const expectedKey = process.env.CONFIG_PASSWORD;
-  const providedKey = (req.query && req.query.key) || '';
-
-  if (!expectedKey) {
-    res.status(500).setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.send(
-      '<p style="font-family:sans-serif;max-width:520px;margin:40px auto">' +
-        'CONFIG_PASSWORD is not set. Add it as an environment variable in Vercel (any password ' +
-        'you choose), redeploy once, then reload this page as <code>/backstage?key=&lt;that password&gt;</code>. ' +
-        'See the README’s "Live config" section for the full setup.' +
-        '</p>'
-    );
-    return;
-  }
-
-  if (!providedKey || providedKey !== expectedKey) {
-    res.status(401).setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.send(
-      '<p style="font-family:sans-serif;max-width:520px;margin:40px auto">' +
-        'Missing or wrong key. Open this page as <code>/backstage?key=&lt;your CONFIG_PASSWORD&gt;</code>.' +
-        '</p>'
-    );
-    return;
-  }
-
   let message = null;
   let error = null;
   let justWrittenCfg = null;
@@ -246,5 +222,5 @@ module.exports = withCors(async (req, res) => {
   const cfg = justWrittenCfg || (await getConfig());
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
-  res.status(200).send(renderPage({ key: providedKey, cfg, message, error }));
+  res.status(200).send(renderPage({ cfg, message, error }));
 });
