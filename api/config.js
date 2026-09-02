@@ -1,5 +1,6 @@
 // api/config.js
-// Served at /config (see vercel.json rewrite). A small password-protected HTML page for
+// Served at /backstage (see vercel.json rewrite -- deliberately not the more guessable
+// "/config"). A small password-protected HTML page for
 // changing the addon's poster provider (a URL template) without touching Vercel's dashboard
 // or the GitHub repo -- just one field and a Save/Reset button. Reads/writes the same
 // "topTwentyConfig" Edge Config item that lib/config.js reads from -- see that file and the
@@ -10,7 +11,7 @@
 // "Items" tab if you ever need to.
 //
 // Protection: a single shared password, set as the CONFIG_PASSWORD environment variable.
-// Bookmark this page as /config?key=<your password> -- viewing and saving both require it.
+// Bookmark this page as /backstage?key=<your password> -- viewing and saving both require it.
 // Deliberately simple (no accounts, no sessions) since this is a single-owner tool; treat a
 // URL with the key in it like a password itself, don't share it.
 //
@@ -161,7 +162,7 @@ function renderPage({ key, cfg, message, error }) {
     <p class="sub">Changes here apply within a few seconds. No redeploy, nothing to push to GitHub.</p>
     ${message ? `<div class="banner ok">${escapeHtml(message)}</div>` : ''}
     ${error ? `<div class="banner err">${escapeHtml(error)}</div>` : ''}
-    <form method="POST" action="/config?key=${encodeURIComponent(key)}">
+    <form method="POST" action="/backstage?key=${encodeURIComponent(key)}">
       ${rows}
       <div class="actions">
         <button class="save" type="submit" name="action" value="save">Save changes</button>
@@ -183,7 +184,7 @@ module.exports = withCors(async (req, res) => {
     res.send(
       '<p style="font-family:sans-serif;max-width:520px;margin:40px auto">' +
         'CONFIG_PASSWORD is not set. Add it as an environment variable in Vercel (any password ' +
-        'you choose), redeploy once, then reload this page as <code>/config?key=&lt;that password&gt;</code>. ' +
+        'you choose), redeploy once, then reload this page as <code>/backstage?key=&lt;that password&gt;</code>. ' +
         'See the README’s "Live config" section for the full setup.' +
         '</p>'
     );
@@ -194,7 +195,7 @@ module.exports = withCors(async (req, res) => {
     res.status(401).setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(
       '<p style="font-family:sans-serif;max-width:520px;margin:40px auto">' +
-        'Missing or wrong key. Open this page as <code>/config?key=&lt;your CONFIG_PASSWORD&gt;</code>.' +
+        'Missing or wrong key. Open this page as <code>/backstage?key=&lt;your CONFIG_PASSWORD&gt;</code>.' +
         '</p>'
     );
     return;

@@ -3,7 +3,7 @@
     { "source": "/manifest.json", "destination": "/api/manifest" },
     { "source": "/catalog/:type/:id.json", "destination": "/api/catalog?type=:type&id=:id" },
     { "source": "/poster/:type/:imdb/:rank.jpg", "destination": "/api/poster?type=:type&imdb=:imdb&rank=:rank" },
-    { "source": "/config", "destination": "/api/config" }
+    { "source": "/backstage", "destination": "/api/config" }
   ],
   "functions": {
     "api/poster.js": {
