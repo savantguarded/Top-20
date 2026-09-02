@@ -1,9 +1,13 @@
 // api/config.js
 // Served at /config (see vercel.json rewrite). A small password-protected HTML page for
-// changing the addon's live settings (poster provider, region, catalog size, status-label
-// windows) without touching Vercel's dashboard or the GitHub repo -- just a form. Reads/writes
-// the same "topTwentyConfig" Edge Config item that lib/config.js reads from -- see that file
-// and the README's "Live config" section for the full picture and one-time setup.
+// changing the addon's poster provider (a URL template) without touching Vercel's dashboard
+// or the GitHub repo -- just one field and a Save/Reset button. Reads/writes the same
+// "topTwentyConfig" Edge Config item that lib/config.js reads from -- see that file and the
+// README's "Live config" section for the full picture and one-time setup. Every other live
+// setting (region, catalog size, status-label day windows) still lives in that same Edge
+// Config item and still works exactly as before; this page just doesn't expose a control for
+// them anymore (deliberately simplified) -- edit them directly in Vercel's Edge Config
+// "Items" tab if you ever need to.
 //
 // Protection: a single shared password, set as the CONFIG_PASSWORD environment variable.
 // Bookmark this page as /config?key=<your password> -- viewing and saving both require it.
@@ -15,9 +19,13 @@
 // Config store belongs to a Vercel team rather than a personal account, also set
 // VERCEL_TEAM_ID. Both are separate from TMDB_API_KEY and EDGE_CONFIG.
 
-const { getConfig, DEFAULTS, mergeDeep, primeCache } = require('../lib/config');
+const { getConfig, DEFAULTS, mergeDeep, primeCache, getRawOverrides } = require('../lib/config');
 const { withCors } = require('../lib/cors');
 
+// This page intentionally exposes only the poster provider template. Every other tunable
+// (region, catalog size, status-label day windows, etc.) still lives in Edge Config and
+// still works exactly as before -- it's just not editable from this simplified page anymore.
+// Edit those directly in Vercel's Edge Config "Items" tab if you ever need to.
 const FIELDS = [
   {
     key: 'posterUrlTemplate',
@@ -25,71 +33,6 @@ const FIELDS = [
     type: 'text',
     hint: 'Use {imdbId} or {id} as a placeholder (both work), e.g. https://btttr.cc/poster-n/imdb/poster-default/{imdbId}.jpg?tag=none',
     path: ['posterUrlTemplate'],
-  },
-  {
-    key: 'region',
-    label: 'Region (release-date country code)',
-    type: 'text',
-    hint: 'e.g. US, GB, CA',
-    path: ['region'],
-  },
-  {
-    key: 'catalogSize',
-    label: 'Catalog size',
-    type: 'number',
-    hint: 'How many items each catalog tries to fill to',
-    path: ['catalogSize'],
-  },
-  {
-    key: 'maxPages',
-    label: 'Max trending pages to search',
-    type: 'number',
-    hint: 'Safety cap on how deep to page through TMDB while filling the catalog',
-    path: ['maxPages'],
-  },
-  {
-    key: 'foreignMinVoteCount',
-    label: 'Foreign-language minimum vote count',
-    type: 'number',
-    hint: 'Minimum TMDB votes for a non-English trending title to qualify',
-    path: ['foreignMinVoteCount'],
-  },
-  {
-    key: 'movie.justAddedWindowDays',
-    label: 'Movie: "Just Added" window (days)',
-    type: 'number',
-    path: ['movie', 'justAddedWindowDays'],
-  },
-  {
-    key: 'movie.nowStreamingWindowDays',
-    label: 'Movie: "Now Streaming" window (days)',
-    type: 'number',
-    path: ['movie', 'nowStreamingWindowDays'],
-  },
-  {
-    key: 'movie.blurayWindowDays',
-    label: 'Movie: "Now on Blu-ray" window (days)',
-    type: 'number',
-    path: ['movie', 'blurayWindowDays'],
-  },
-  {
-    key: 'movie.comingSoonWindowDays',
-    label: 'Movie: "Coming Soon" window (days)',
-    type: 'number',
-    path: ['movie', 'comingSoonWindowDays'],
-  },
-  {
-    key: 'show.recencyWindowDays',
-    label: 'Show: episode-tag recency window (days)',
-    type: 'number',
-    hint: 'How long Premiere/New Season/New Episode/Finale tags stay visible',
-    path: ['show', 'recencyWindowDays'],
-  },
-  {
-    key: 'show.comingSoonWindowDays',
-    label: 'Show: "Coming Soon" / eligibility window (days)',
-    type: 'number',
-    path: ['show', 'comingSoonWindowDays'],
   },
 ];
 
@@ -104,16 +47,6 @@ function escapeHtml(str) {
 
 function getPath(obj, path) {
   return path.reduce((o, k) => (o == null ? o : o[k]), obj);
-}
-
-function setPath(obj, path, value) {
-  let o = obj;
-  for (let i = 0; i < path.length - 1; i++) {
-    const k = path[i];
-    if (typeof o[k] !== 'object' || o[k] === null) o[k] = {};
-    o = o[k];
-  }
-  o[path[path.length - 1]] = value;
 }
 
 /** Pull the Edge Config store id (e.g. "ecfg_xxx") out of the EDGE_CONFIG connection string. */
@@ -232,10 +165,10 @@ function renderPage({ key, cfg, message, error }) {
       ${rows}
       <div class="actions">
         <button class="save" type="submit" name="action" value="save">Save changes</button>
-        <button class="reset" type="submit" name="action" value="reset">Reset all to defaults</button>
+        <button class="reset" type="submit" name="action" value="reset">Reset poster to default</button>
       </div>
     </form>
-    <div class="foot">Bookmark this page's exact URL (with your key) to come back later. Anyone with this URL can change the addon's settings, so don't share it.</div>
+    <div class="foot">"Reset poster to default" always takes the poster provider back to btttr.cc (${escapeHtml(DEFAULTS.posterUrlTemplate)}) and doesn't touch anything else. Bookmark this page's exact URL (with your key) to come back later. Anyone with this URL can change the addon's settings, so don't share it.</div>
   </div>
 </body>
 </html>`;
@@ -276,27 +209,24 @@ module.exports = withCors(async (req, res) => {
       const params = await parseFormBody(req);
       const action = params.action;
 
+      // Both branches start from the current RAW overrides (not getConfig()'s merged,
+      // defaults-filled result) and only touch posterUrlTemplate -- every other field this
+      // page no longer shows a control for (region, catalog size, status-label windows, ...)
+      // is carried through untouched, whatever it's currently set to in Edge Config.
+      const existing = { ...((await getRawOverrides()) || {}) };
+
       if (action === 'reset') {
-        await writeEdgeConfigItem('topTwentyConfig', undefined);
-        justWrittenCfg = mergeDeep(DEFAULTS, {});
-        message = 'Reset to defaults.';
+        delete existing.posterUrlTemplate;
+        await writeEdgeConfigItem('topTwentyConfig', existing);
+        justWrittenCfg = mergeDeep(DEFAULTS, existing);
+        message = 'Poster provider reset to btttr.cc (the default). Nothing else was changed.';
       } else {
-        const overrides = {};
-        for (const f of FIELDS) {
-          const raw = params[f.key];
-          if (raw === undefined || raw === '') continue;
-          if (f.type === 'number') {
-            const value = Number(raw);
-            if (!Number.isFinite(value) || value < 0) {
-              throw new Error(`"${f.label}" must be a non-negative number.`);
-            }
-            setPath(overrides, f.path, value);
-          } else {
-            setPath(overrides, f.path, raw);
-          }
+        const raw = params.posterUrlTemplate;
+        if (raw !== undefined && raw !== '') {
+          existing.posterUrlTemplate = raw;
         }
-        await writeEdgeConfigItem('topTwentyConfig', overrides);
-        justWrittenCfg = mergeDeep(DEFAULTS, overrides);
+        await writeEdgeConfigItem('topTwentyConfig', existing);
+        justWrittenCfg = mergeDeep(DEFAULTS, existing);
         message = 'Saved. Give it a few seconds to take effect.';
       }
       // Don't trust a getConfig() re-read here -- it can still be serving a value
