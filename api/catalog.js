@@ -56,6 +56,12 @@ module.exports = withCors(async (req, res) => {
     const rank = idx + 1;
     const params = new URLSearchParams();
     params.set('pv', posterTag);
+    // Threaded through so api/poster.js can fill TMDB-id-keyed provider templates (e.g.
+    // Posters+), which need the numeric TMDB id, not just the imdb_id every provider so far
+    // has taken. Harmless/unused for imdb-only templates like btttr.cc or XRDB.
+    if (item.tmdbId) {
+      params.set('tmdb', item.tmdbId);
+    }
     if (item.poster_path) {
       params.set('fallback', `https://image.tmdb.org/t/p/w500${item.poster_path}`);
     }
