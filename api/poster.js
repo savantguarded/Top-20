@@ -1,10 +1,11 @@
 // api/poster.js
-// Served at /poster/:type/:imdb/:rank.jpg?tmdb=&pv=&... (see vercel.json rewrite and
-// api/catalog.js, which adds tmdb/pv/fallback/ctx as query params).
+// Served at /poster/:type/:imdb/:rank.jpg?tmdb=&pv=&corner=&... (see vercel.json rewrite and
+// api/catalog.js, which adds tmdb/pv/fallback/ctx/corner as query params).
 // Fetches the base poster from the configured provider (URL template, see lib/config.js --
 // swap providers there or live via /config or Edge Config, no code change, no redeploy),
 // falls back to TMDB's own poster if that source doesn't have the title or is too slow to
-// answer, overlays the glossy rank badge in the top-left corner plus a bottom status pill
+// answer, overlays the glossy rank badge (top-left for the original /manifest.json install,
+// top-right for the /stremio/manifest.json install -- see ?corner=) plus a bottom status pill
 // (e.g. "Just Added", "New Episode", passed in via ?ctx=), and returns a cached JPEG.
 
 const { applyOverlays } = require('../lib/badge');
@@ -73,8 +74,11 @@ function buildPosterUrl(template, { imdbId, tmdbId, type }) {
 }
 
 module.exports = withCors(async (req, res) => {
-  const { type, imdb, tmdb, rank, fallback, ctx } = req.query;
+  const { type, imdb, tmdb, rank, fallback, ctx, corner } = req.query;
   const rankNum = Math.max(1, parseInt(rank, 10) || 1);
+  // 'tl' (top-left, original) unless the /stremio/ manifest flavor asked for 'tr' -- see
+  // api/catalog.js, which sets this on every poster URL it hands out.
+  const badgeCorner = corner === 'tr' ? 'tr' : 'tl';
 
   if (!imdb) {
     res.status(400).json({ err: 'missing imdb id' });
@@ -107,7 +111,7 @@ module.exports = withCors(async (req, res) => {
   }
 
   try {
-    const out = await applyOverlays(posterBuffer, { rank: rankNum, statusLabel: ctx || null });
+    const out = await applyOverlays(posterBuffer, { rank: rankNum, statusLabel: ctx || null, corner: badgeCorner });
     res.setHeader('Content-Type', 'image/jpeg');
     // Deliberately much shorter than api/catalog.js's own 1-hour cache. The catalog listing
     // (which titles are in the Top 20, their rank order) is meant to only change on that slow

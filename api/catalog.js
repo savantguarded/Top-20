@@ -22,6 +22,12 @@ const { getConfig } = require('../lib/config');
 
 module.exports = withCors(async (req, res) => {
   const { type, id } = req.query;
+  // Which corner the rank badge renders in on this catalog's posters -- 'tl' (default) for
+  // the original Nuvio install, 'tr' for the /stremio/ install (see vercel.json), which avoids
+  // colliding with Stremio's own top-left "watched" checkmark overlay. Threaded onto every
+  // poster URL below so api/poster.js knows which corner to draw, and so the two flavors get
+  // separate edge cache entries instead of one flavor's cached poster leaking into the other.
+  const corner = req.query.corner === 'tr' ? 'tr' : 'tl';
 
   let items;
   try {
@@ -56,6 +62,7 @@ module.exports = withCors(async (req, res) => {
     const rank = idx + 1;
     const params = new URLSearchParams();
     params.set('pv', posterTag);
+    params.set('corner', corner);
     // Threaded through so api/poster.js can fill TMDB-id-keyed provider templates (e.g.
     // Posters+), which need the numeric TMDB id, not just the imdb_id every provider so far
     // has taken. Harmless/unused for imdb-only templates like btttr.cc or XRDB.
