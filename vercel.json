@@ -3,10 +3,12 @@
     { "source": "/manifest.json", "destination": "/api/manifest" },
     { "source": "/catalog/:type/:id.json", "destination": "/api/catalog?type=:type&id=:id" },
     { "source": "/poster/:type/:imdb/:rank.jpg", "destination": "/api/poster?type=:type&imdb=:imdb&rank=:rank" },
+    { "source": "/meta/:type/:id.json", "destination": "/api/meta?type=:type&id=:id" },
     { "source": "/backstage", "destination": "/api/config" },
 
     { "source": "/stremio/manifest.json", "destination": "/api/manifest" },
-    { "source": "/stremio/catalog/:type/:id.json", "destination": "/api/catalog?type=:type&id=:id&corner=tr" }
+    { "source": "/stremio/catalog/:type/:id.json", "destination": "/api/catalog?type=:type&id=:id&corner=tr" },
+    { "source": "/stremio/meta/:type/:id.json", "destination": "/api/meta?type=:type&id=:id" }
   ],
   "functions": {
     "api/poster.js": {
@@ -14,6 +16,10 @@
       "maxDuration": 15
     },
     "api/catalog.js": {
+      "memory": 512,
+      "maxDuration": 15
+    },
+    "api/meta.js": {
       "memory": 512,
       "maxDuration": 15
     }

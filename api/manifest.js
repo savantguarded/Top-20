@@ -1,6 +1,7 @@
 // api/manifest.js
 // Served at /manifest.json (see vercel.json rewrite).
-// Stremio addon manifest describing the two catalogs.
+// Stremio addon manifest describing the two catalogs, plus a fallback `meta` resource (see
+// lib/meta.js / api/meta.js) for when the primary meta addon has no data for a title.
 
 const { withCors } = require('../lib/cors');
 
@@ -10,14 +11,17 @@ module.exports = withCors((req, res) => {
 
   const manifest = {
     id: 'com.charles.topchartstoday',
-    version: '1.1.0',
+    version: '1.2.0',
     name: 'Top Charts Today',
     description:
       'Top 20 movies (digital/home release only) and top 20 shows, ranked daily via TMDB, US region. ' +
       'Created by Charles. ' +
       'This product uses the TMDB API but is not endorsed or certified by TMDB.',
     logo: `${base}/icon.png`,
-    resources: ['catalog'],
+    // 'catalog' applies to both catalogs above. The 'meta' resource object (own idPrefixes,
+    // matching the top-level ones below) is a fallback only -- see lib/meta.js -- meant to be
+    // tried after a real meta addon like aiometadata, not instead of one.
+    resources: ['catalog', { name: 'meta', types: ['movie', 'series'], idPrefixes: ['tt'] }],
     types: ['movie', 'series'],
     catalogs: [
       {
