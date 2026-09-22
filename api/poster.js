@@ -1,12 +1,16 @@
 // api/poster.js
-// Served at /poster/:type/:imdb/:rank.jpg?tmdb=&pv=&corner=&... (see vercel.json rewrite and
-// api/catalog.js, which adds tmdb/pv/fallback/ctx/corner as query params).
-// Fetches the base poster from the configured provider (URL template, see lib/config.js --
-// swap providers there or live via /config or Edge Config, no code change, no redeploy),
-// falls back to TMDB's own poster if that source doesn't have the title or is too slow to
+// Served at /poster/:type/:imdb/:rank.jpg?tmdb=&pv=&corner=&shape=&bp=&... (see vercel.json
+// rewrite and api/catalog.js, which adds tmdb/pv/fallback/ctx/corner/shape/bp as query params).
+// Fetches the base image from the configured provider (URL template, see lib/config.js --
+// swap providers there or live via /backstage or Edge Config, no code change, no redeploy),
+// falls back to TMDB's own image if that source doesn't have the title or is too slow to
 // answer, overlays the glossy rank badge (top-left for the original /manifest.json install,
-// top-right for the /stremio/manifest.json install -- see ?corner=) plus a bottom status pill
+// top-right for the /stremio/manifest.json install -- see ?corner=) plus a status pill
 // (e.g. "Just Added", "New Episode", passed in via ?ctx=), and returns a cached JPEG.
+// `?shape=landscape` (set only on api/catalog.js's `background` URLs) switches the base image
+// source to cfg.backdropUrlTemplate (filled with `?bp=` -- TMDB's backdrop_path) instead of
+// cfg.posterUrlTemplate, and flips the badge/pill layout accordingly -- see lib/badge.js.
+// Omitting `shape` (the original poster URLs) is byte-identical to before this existed.
 
 const { applyOverlays } = require('../lib/badge');
 const { withCors } = require('../lib/cors');
@@ -64,21 +68,32 @@ function tmdbType(stremioType) {
  * -- if the generic rule ran first it would stuff the imdb id into `{tmdb_id}` instead.
  * `{tmdb_key}` never leaves this server: it's filled into the *upstream* request api/poster.js
  * itself makes, never into anything Stremio/Nuvio's own client ever sees.
+ *
+ * `{backdrop_path}` (any spelling containing "backdrop") is NEW -- used by backdropUrlTemplate
+ * for landscape/backdrop images. TMDB's own backdrop_path already includes its own leading
+ * slash, so it's substituted as-is, not URL-encoded (matches how the default template,
+ * "https://image.tmdb.org/t/p/w1280{backdrop_path}", expects it). Doesn't collide with the
+ * generic id/type/tmdb rules -- "backdrop_path" contains none of those substrings.
  */
-function buildPosterUrl(template, { imdbId, tmdbId, type }) {
+function buildPosterUrl(template, { imdbId, tmdbId, type, backdropPath }) {
   return template
     .replace(/\{[^{}]*tmdb[^{}]*key[^{}]*\}/gi, () => encodeURIComponent(tmdbApiKey()))
     .replace(/\{[^{}]*tmdb[^{}]*id[^{}]*\}/gi, () => encodeURIComponent(tmdbId || ''))
+    .replace(/\{[^{}]*backdrop[^{}]*\}/gi, () => backdropPath || '')
     .replace(/\{[^{}]*type[^{}]*\}/gi, () => encodeURIComponent(tmdbType(type)))
     .replace(/\{[^{}]*id[^{}]*\}/gi, () => encodeURIComponent(imdbId));
 }
 
 module.exports = withCors(async (req, res) => {
-  const { type, imdb, tmdb, rank, fallback, ctx, corner } = req.query;
+  const { type, imdb, tmdb, rank, fallback, ctx, corner, shape, bp } = req.query;
   const rankNum = Math.max(1, parseInt(rank, 10) || 1);
   // 'tl' (top-left, original) unless the /stremio/ manifest flavor asked for 'tr' -- see
   // api/catalog.js, which sets this on every poster URL it hands out.
   const badgeCorner = corner === 'tr' ? 'tr' : 'tl';
+  // 'portrait' (original, unchanged) unless api/catalog.js's `background` field asked for
+  // 'landscape' -- see lib/badge.js for what this changes. `bp` is TMDB's backdrop_path,
+  // threaded through so the configured backdropUrlTemplate (or the fallback below) can use it.
+  const imgShape = shape === 'landscape' ? 'landscape' : 'portrait';
 
   if (!imdb) {
     res.status(400).json({ err: 'missing imdb id' });
@@ -86,22 +101,31 @@ module.exports = withCors(async (req, res) => {
   }
 
   const cfg = await getConfig();
+  const template = imgShape === 'landscape' ? cfg.backdropUrlTemplate : cfg.posterUrlTemplate;
   let posterBuffer = null;
 
   try {
-    const url = buildPosterUrl(cfg.posterUrlTemplate, { imdbId: imdb, tmdbId: tmdb, type });
+    const url = buildPosterUrl(template, { imdbId: imdb, tmdbId: tmdb, type, backdropPath: bp });
     const r = await fetchWithTimeout(url, PRIMARY_FETCH_TIMEOUT_MS);
     if (r.ok) posterBuffer = Buffer.from(await r.arrayBuffer());
   } catch {
     // Timed out, network error, or aborted -- fall through to the TMDB fallback below.
   }
 
-  if (!posterBuffer && fallback) {
-    try {
-      const r2 = await fetchWithTimeout(fallback, FALLBACK_FETCH_TIMEOUT_MS);
-      if (r2.ok) posterBuffer = Buffer.from(await r2.arrayBuffer());
-    } catch {
-      // no poster available at all
+  if (!posterBuffer) {
+    // Portrait's fallback is the `fallback` query param (a plain TMDB poster URL, set by
+    // api/catalog.js). Landscape has no such param -- its fallback is built directly from
+    // `bp`, the same way the default backdropUrlTemplate itself does, so a broken/slow
+    // backdrop provider degrades to TMDB's own backdrop exactly like posters degrade to
+    // TMDB's own poster.
+    const fallbackUrl = fallback || (imgShape === 'landscape' && bp ? `https://image.tmdb.org/t/p/w1280${bp}` : null);
+    if (fallbackUrl) {
+      try {
+        const r2 = await fetchWithTimeout(fallbackUrl, FALLBACK_FETCH_TIMEOUT_MS);
+        if (r2.ok) posterBuffer = Buffer.from(await r2.arrayBuffer());
+      } catch {
+        // no image available at all
+      }
     }
   }
 
@@ -111,7 +135,7 @@ module.exports = withCors(async (req, res) => {
   }
 
   try {
-    const out = await applyOverlays(posterBuffer, { rank: rankNum, statusLabel: ctx || null, corner: badgeCorner });
+    const out = await applyOverlays(posterBuffer, { rank: rankNum, statusLabel: ctx || null, corner: badgeCorner, shape: imgShape });
     res.setHeader('Content-Type', 'image/jpeg');
     // Deliberately much shorter than api/catalog.js's own 1-hour cache. The catalog listing
     // (which titles are in the Top 20, their rank order) is meant to only change on that slow

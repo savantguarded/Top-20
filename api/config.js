@@ -24,10 +24,10 @@
 const { getConfig, DEFAULTS, mergeDeep, primeCache, getRawOverrides } = require('../lib/config');
 const { withCors } = require('../lib/cors');
 
-// This page intentionally exposes only the poster provider template. Every other tunable
-// (region, catalog size, status-label day windows, etc.) still lives in Edge Config and
-// still works exactly as before -- it's just not editable from this simplified page anymore.
-// Edit those directly in Vercel's Edge Config "Items" tab if you ever need to.
+// This page intentionally exposes only the poster and backdrop provider templates. Every
+// other tunable (region, catalog size, status-label day windows, etc.) still lives in Edge
+// Config and still works exactly as before -- it's just not editable from this simplified
+// page anymore. Edit those directly in Vercel's Edge Config "Items" tab if you ever need to.
 const FIELDS = [
   {
     key: 'posterUrlTemplate',
@@ -35,6 +35,13 @@ const FIELDS = [
     type: 'text',
     hint: 'Use {imdbId} or {id} as a placeholder (both work), e.g. https://btttr.cc/poster-n/imdb/poster-default/{imdbId}.jpg?tag=none',
     path: ['posterUrlTemplate'],
+  },
+  {
+    key: 'backdropUrlTemplate',
+    label: 'Landscape / backdrop provider URL template',
+    type: 'text',
+    hint: "Use {backdrop_path} for TMDB's own backdrop path (already includes its leading slash), or {tmdb_id}/{type}/{tmdb_key} for a TMDB-id-keyed provider. Feeds the background field used by Nuvio's hero carousel and landscape catalog cards.",
+    path: ['backdropUrlTemplate'],
   },
 ];
 
@@ -167,10 +174,10 @@ function renderPage({ cfg, message, error }) {
       ${rows}
       <div class="actions">
         <button class="save" type="submit" name="action" value="save">Save changes</button>
-        <button class="reset" type="submit" name="action" value="reset">Reset poster to default</button>
+        <button class="reset" type="submit" name="action" value="reset">Reset all to default</button>
       </div>
     </form>
-    <div class="foot">"Reset poster to default" always takes the poster provider back to btttr.cc (${escapeHtml(DEFAULTS.posterUrlTemplate)}) and doesn't touch anything else. This page has no password -- anyone with the /backstage link can view and change it, so don't post this URL anywhere public.</div>
+    <div class="foot">"Reset all to default" takes every field above back to its default (${FIELDS.map((f) => `${escapeHtml(f.label)}: ${escapeHtml(getPath(DEFAULTS, f.path))}`).join('; ')}) and doesn't touch anything else. This page has no password -- anyone with the /backstage link can view and change it, so don't post this URL anywhere public.</div>
   </div>
 </body>
 </html>`;
@@ -187,20 +194,22 @@ module.exports = withCors(async (req, res) => {
       const action = params.action;
 
       // Both branches start from the current RAW overrides (not getConfig()'s merged,
-      // defaults-filled result) and only touch posterUrlTemplate -- every other field this
+      // defaults-filled result) and only touch the keys in FIELDS -- every other field this
       // page no longer shows a control for (region, catalog size, status-label windows, ...)
       // is carried through untouched, whatever it's currently set to in Edge Config.
       const existing = { ...((await getRawOverrides()) || {}) };
 
       if (action === 'reset') {
-        delete existing.posterUrlTemplate;
+        for (const f of FIELDS) delete existing[f.key];
         await writeEdgeConfigItem('topTwentyConfig', existing);
         justWrittenCfg = mergeDeep(DEFAULTS, existing);
-        message = 'Poster provider reset to btttr.cc (the default). Nothing else was changed.';
+        message = 'Poster and backdrop providers reset to their defaults. Nothing else was changed.';
       } else {
-        const raw = params.posterUrlTemplate;
-        if (raw !== undefined && raw !== '') {
-          existing.posterUrlTemplate = raw;
+        for (const f of FIELDS) {
+          const raw = params[f.key];
+          if (raw !== undefined && raw !== '') {
+            existing[f.key] = raw;
+          }
         }
         await writeEdgeConfigItem('topTwentyConfig', existing);
         justWrittenCfg = mergeDeep(DEFAULTS, existing);

@@ -7,13 +7,19 @@
 //
 // Deliberately does NOT include description/genres/imdbRating/runtime/logo --
 // this addon only declares `resources: ['catalog']` (api/manifest.js), so those
-// stay aiometadata's job on the real detail page. `background` (a plain TMDB
-// backdrop, no overlay) exists specifically so Nuvio's home-screen hero carousel
-// and landscape-mode catalog cards have a real image to show -- without it they
-// fall back to `poster`, which has the rank badge burned into the top-left
-// corner and looked wrong blown up to hero size (confirmed against Nuvio's own
-// source: HomeCatalogParser.kt reads background/banner, HomeHeroSection.kt falls
-// back to poster when both are absent). Full history in the project's progress log.
+// stay aiometadata's job on the real detail page. `background` exists specifically
+// so Nuvio's home-screen hero carousel and landscape-mode catalog cards have a real
+// image to show -- without it they fall back to `poster`, which has the rank badge
+// burned into the top-left corner and looked wrong blown up to hero size (confirmed
+// against Nuvio's own source: HomeCatalogParser.kt reads background/banner,
+// HomeHeroSection.kt falls back to poster when both are absent).
+//
+// `background` now carries the same rank badge + status pill as `poster` does, just
+// laid out for a wide frame (pill flush to the TOP edge instead of the bottom -- see
+// lib/badge.js) -- it's no longer a plain, unbadged TMDB backdrop. Routed through the
+// same /poster/... endpoint as `poster`, with `shape=landscape` and `bp=` (TMDB's
+// backdrop_path) telling api/poster.js which image source and layout to use. Full
+// history in the project's progress log.
 
 const crypto = require('crypto');
 const { getTopMovies, getTopShows } = require('../lib/tmdb');
@@ -57,6 +63,10 @@ module.exports = withCors(async (req, res) => {
   // edge cache treats them as brand new (never-cached) requests instead of serving stale art.
   const cfg = await getConfig();
   const posterTag = crypto.createHash('sha1').update(cfg.posterUrlTemplate || '').digest('hex').slice(0, 8);
+  // Same cache-busting idea as posterTag, but for the backdrop/landscape provider -- kept as
+  // a SEPARATE tag so swapping one provider via /backstage doesn't needlessly invalidate the
+  // other shape's already-cached poster URLs.
+  const backdropTag = crypto.createHash('sha1').update(cfg.backdropUrlTemplate || '').digest('hex').slice(0, 8);
 
   const metas = items.map((item, idx) => {
     const rank = idx + 1;
@@ -75,6 +85,27 @@ module.exports = withCors(async (req, res) => {
     if (item.context) {
       params.set('ctx', item.context);
     }
+
+    // `background`: same rank badge + status pill as `poster`, laid out for a wide frame
+    // (see lib/badge.js's shape='landscape' branch), routed through the same /poster/...
+    // endpoint. Only set when TMDB actually has a backdrop for this title -- same
+    // no-backdrop-means-no-field behavior as before this change.
+    let background;
+    if (item.backdrop_path) {
+      const bgParams = new URLSearchParams();
+      bgParams.set('shape', 'landscape');
+      bgParams.set('pv', backdropTag);
+      bgParams.set('corner', corner);
+      bgParams.set('bp', item.backdrop_path);
+      if (item.tmdbId) {
+        bgParams.set('tmdb', item.tmdbId);
+      }
+      if (item.context) {
+        bgParams.set('ctx', item.context);
+      }
+      background = `${base}/poster/${type}/${item.imdbId}/${rank}.jpg?${bgParams.toString()}`;
+    }
+
     return {
       id: item.imdbId,
       type,
@@ -82,9 +113,7 @@ module.exports = withCors(async (req, res) => {
       releaseInfo: item.releaseInfo || undefined,
       poster: `${base}/poster/${type}/${item.imdbId}/${rank}.jpg?${params.toString()}`,
       posterShape: 'poster',
-      background: item.backdrop_path
-        ? `https://image.tmdb.org/t/p/w1280${item.backdrop_path}`
-        : undefined,
+      background,
     };
   });
 
