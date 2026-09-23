@@ -43,6 +43,17 @@ const FIELDS = [
     hint: "Use {backdrop_path} for TMDB's own textless backdrop (already includes its leading slash), or {tmdb_id}/{type}/{tmdb_key} for a TMDB-id-keyed provider. Pick a source WITHOUT a baked-in title logo: Nuvio draws its own clearlogo on landscape cards, so a logo in the image shows up twice (Posters+ landscape always bakes one in).",
     path: ['backdropUrlTemplate'],
   },
+  {
+    key: 'landscapeArt',
+    label: 'Landscape card image',
+    type: 'select',
+    options: [
+      { value: 'alternate', label: 'Alternate: a different image from the main backdrop' },
+      { value: 'main', label: 'Main: same image as the main backdrop' },
+    ],
+    hint: 'Which TMDB backdrop fills {backdrop_path} above. Takes effect when the catalog next refreshes (within the hour).',
+    path: ['landscapeArt'],
+  },
 ];
 
 function escapeHtml(str) {
@@ -117,10 +128,13 @@ async function parseFormBody(req) {
 function renderPage({ cfg, message, error }) {
   const rows = FIELDS.map((f) => {
     const value = getPath(cfg, f.path);
+    const control = f.type === 'select'
+      ? `<select name="${f.key}">${f.options.map((o) => `<option value="${escapeHtml(o.value)}"${o.value === value ? ' selected' : ''}>${escapeHtml(o.label)}</option>`).join('')}</select>`
+      : `<input type="${f.type}" name="${f.key}" value="${escapeHtml(value)}" ${f.type === 'number' ? 'step="1" min="0"' : ''} />`;
     return `
       <label class="field">
         <span class="field-label">${escapeHtml(f.label)}</span>
-        <input type="${f.type}" name="${f.key}" value="${escapeHtml(value)}" ${f.type === 'number' ? 'step="1" min="0"' : ''} />
+        ${control}
         ${f.hint ? `<span class="field-hint">${escapeHtml(f.hint)}</span>` : ''}
       </label>`;
   }).join('\n');
@@ -153,7 +167,11 @@ function renderPage({ cfg, message, error }) {
     background: #1a1b20; border: 1px solid #2c2d34; color: #e8e8ec;
     border-radius: 6px; padding: 10px 12px; font-size: 0.95rem;
   }
-  input:focus { outline: none; border-color: #5b7cff; }
+  select {
+    background: #1a1b20; border: 1px solid #2c2d34; color: #e8e8ec;
+    border-radius: 6px; padding: 10px 12px; font-size: 0.95rem;
+  }
+  input:focus, select:focus { outline: none; border-color: #5b7cff; }
   .actions { display: flex; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
   button {
     border: none; border-radius: 6px; padding: 11px 18px; font-size: 0.92rem; font-weight: 600;
@@ -203,13 +221,13 @@ module.exports = withCors(async (req, res) => {
         for (const f of FIELDS) delete existing[f.key];
         await writeEdgeConfigItem('topTwentyConfig', existing);
         justWrittenCfg = mergeDeep(DEFAULTS, existing);
-        message = 'Poster and backdrop providers reset to their defaults. Nothing else was changed.';
+        message = 'Poster, backdrop and landscape image settings reset to their defaults. Nothing else was changed.';
       } else {
         for (const f of FIELDS) {
           const raw = params[f.key];
-          if (raw !== undefined && raw !== '') {
-            existing[f.key] = raw;
-          }
+          if (raw === undefined || raw === '') continue;
+          if (f.type === 'select' && !f.options.some((o) => o.value === raw)) continue;
+          existing[f.key] = raw;
         }
         await writeEdgeConfigItem('topTwentyConfig', existing);
         justWrittenCfg = mergeDeep(DEFAULTS, existing);
