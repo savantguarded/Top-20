@@ -18,8 +18,12 @@
 // laid out for a wide frame (pill flush to the TOP edge instead of the bottom -- see
 // lib/badge.js) -- it's no longer a plain, unbadged TMDB backdrop. Routed through the
 // same /poster/... endpoint as `poster`, with `shape=landscape` and `bp=` (TMDB's
-// backdrop_path) telling api/poster.js which image source and layout to use. Full
-// history in the project's progress log.
+// backdrop_path) telling api/poster.js which image source and layout to use.
+//
+// `logo` (TMDB clearlogo) is sent too: Nuvio TV draws it over landscape cards itself, and
+// only fetches one lazily near focus if the catalog doesn't supply it. Because Nuvio adds
+// its own logo, the landscape base image must stay logo-free (bp is a textless backdrop,
+// see lib/tmdb.js) or the logo doubles up. Full history in the project's progress log.
 
 const crypto = require('crypto');
 const { getTopMovies, getTopShows } = require('../lib/tmdb');
@@ -114,6 +118,10 @@ module.exports = withCors(async (req, res) => {
       poster: `${base}/poster/${type}/${item.imdbId}/${rank}.jpg?${params.toString()}`,
       posterShape: 'poster',
       background,
+      // TMDB clearlogo. Nuvio TV draws this over landscape cards; without it in the catalog,
+      // Nuvio only fetches a logo for items near focus, so logos popped in late. See
+      // pickLogo() in lib/tmdb.js for the language/format preference.
+      logo: item.logo_path ? `https://image.tmdb.org/t/p/w500${item.logo_path}` : undefined,
     };
   });
 

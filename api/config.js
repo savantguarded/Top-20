@@ -40,7 +40,7 @@ const FIELDS = [
     key: 'backdropUrlTemplate',
     label: 'Landscape / backdrop provider URL template',
     type: 'text',
-    hint: "Use {backdrop_path} for TMDB's own backdrop path (already includes its leading slash), or {tmdb_id}/{type}/{tmdb_key} for a TMDB-id-keyed provider. Feeds the background field used by Nuvio's hero carousel and landscape catalog cards.",
+    hint: "Use {backdrop_path} for TMDB's own textless backdrop (already includes its leading slash), or {tmdb_id}/{type}/{tmdb_key} for a TMDB-id-keyed provider. Pick a source WITHOUT a baked-in title logo: Nuvio draws its own clearlogo on landscape cards, so a logo in the image shows up twice (Posters+ landscape always bakes one in).",
     path: ['backdropUrlTemplate'],
   },
 ];
