@@ -31,30 +31,20 @@ const { withCors } = require('../lib/cors');
 const FIELDS = [
   {
     key: 'posterUrlTemplate',
-    label: 'Poster provider URL template',
-    type: 'text',
-    hint: 'Use {imdbId} or {id} as a placeholder (both work), e.g. https://btttr.cc/poster-n/imdb/poster-default/{imdbId}.jpg?tag=none',
+    label: 'Portrait poster URL',
     path: ['posterUrlTemplate'],
   },
   {
     key: 'backdropUrlTemplate',
-    label: 'Landscape / backdrop provider URL template',
-    type: 'text',
-    hint: "Use {backdrop_path} for TMDB's own textless backdrop (already includes its leading slash), or {tmdb_id}/{type}/{tmdb_key} for a TMDB-id-keyed provider. Pick a source WITHOUT a baked-in title logo: Nuvio draws its own clearlogo on landscape cards, so a logo in the image shows up twice (Posters+ landscape always bakes one in).",
+    label: 'Landscape poster URL',
     path: ['backdropUrlTemplate'],
   },
-  {
-    key: 'landscapeArt',
-    label: 'Landscape card image',
-    type: 'select',
-    options: [
-      { value: 'alternate', label: 'Alternate: a different image from the main backdrop' },
-      { value: 'main', label: 'Main: same image as the main backdrop' },
-    ],
-    hint: 'Which TMDB backdrop fills {backdrop_path} above. Takes effect when the catalog next refreshes (within the hour).',
-    path: ['landscapeArt'],
-  },
 ];
+
+// Keys this page used to manage but no longer shows. Dropped from Edge Config on any save or
+// reset so a stale value can't linger (e.g. the removed landscapeArt 'main' option -- landscape
+// cards now always use the alternate TMDB image, see lib/tmdb.js).
+const RETIRED_KEYS = ['landscapeArt'];
 
 function escapeHtml(str) {
   return String(str)
@@ -128,14 +118,14 @@ async function parseFormBody(req) {
 function renderPage({ cfg, message, error }) {
   const rows = FIELDS.map((f) => {
     const value = getPath(cfg, f.path);
-    const control = f.type === 'select'
-      ? `<select name="${f.key}">${f.options.map((o) => `<option value="${escapeHtml(o.value)}"${o.value === value ? ' selected' : ''}>${escapeHtml(o.label)}</option>`).join('')}</select>`
-      : `<input type="${f.type}" name="${f.key}" value="${escapeHtml(value)}" ${f.type === 'number' ? 'step="1" min="0"' : ''} />`;
+    const def = getPath(DEFAULTS, f.path);
     return `
       <label class="field">
         <span class="field-label">${escapeHtml(f.label)}</span>
-        ${control}
-        ${f.hint ? `<span class="field-hint">${escapeHtml(f.hint)}</span>` : ''}
+        <span class="row">
+          <input type="text" name="${f.key}" value="${escapeHtml(value)}" placeholder="${escapeHtml(def)}" spellcheck="false" autocomplete="off" />
+          <button class="reset-one" type="submit" name="reset" value="${f.key}" title="Reset to default"${value === def ? ' disabled' : ''}>Reset</button>
+        </span>
       </label>`;
   }).join('\n');
 
@@ -144,58 +134,53 @@ function renderPage({ cfg, message, error }) {
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Top Charts Today — Settings</title>
+<title>Top Charts Today</title>
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
   body {
-    margin: 0; padding: 32px 16px 80px;
+    margin: 0; padding: 40px 16px 64px;
     background: #0b0c0f; color: #e8e8ec;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
   .wrap { max-width: 640px; margin: 0 auto; }
-  h1 { font-size: 1.4rem; margin: 0 0 4px; }
-  p.sub { color: #9a9aa5; margin: 0 0 28px; font-size: 0.92rem; }
+  h1 { font-size: 1.4rem; margin: 0 0 28px; }
   .banner { padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 0.92rem; }
   .banner.ok { background: #113a24; color: #7ee2a8; border: 1px solid #1f6b41; }
   .banner.err { background: #3a1414; color: #ff9e9e; border: 1px solid #6b1f1f; }
   form { display: flex; flex-direction: column; gap: 18px; }
-  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
   .field-label { font-size: 0.88rem; font-weight: 600; color: #cfcfd8; }
-  .field-hint { font-size: 0.78rem; color: #83838f; }
+  .row { display: flex; gap: 8px; }
   input {
+    flex: 1; min-width: 0;
     background: #1a1b20; border: 1px solid #2c2d34; color: #e8e8ec;
     border-radius: 6px; padding: 10px 12px; font-size: 0.95rem;
   }
-  select {
-    background: #1a1b20; border: 1px solid #2c2d34; color: #e8e8ec;
-    border-radius: 6px; padding: 10px 12px; font-size: 0.95rem;
-  }
-  input:focus, select:focus { outline: none; border-color: #5b7cff; }
+  input:focus { outline: none; border-color: #5b7cff; }
   .actions { display: flex; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
   button {
     border: none; border-radius: 6px; padding: 11px 18px; font-size: 0.92rem; font-weight: 600;
     cursor: pointer;
   }
+  button:disabled { opacity: 0.35; cursor: default; }
   button.save { background: #5b7cff; color: white; }
-  button.reset { background: #2c2d34; color: #e8e8ec; }
-  .foot { margin-top: 32px; font-size: 0.78rem; color: #66666f; line-height: 1.5; }
+  button.reset, button.reset-one { background: #2c2d34; color: #e8e8ec; }
+  button.reset-one { padding: 10px 14px; }
 </style>
 </head>
 <body>
   <div class="wrap">
-    <h1>Top Charts Today — Live Settings</h1>
-    <p class="sub">Changes here apply within a few seconds. No redeploy, nothing to push to GitHub.</p>
+    <h1>Top Charts Today</h1>
     ${message ? `<div class="banner ok">${escapeHtml(message)}</div>` : ''}
     ${error ? `<div class="banner err">${escapeHtml(error)}</div>` : ''}
     <form method="POST" action="/backstage">
       ${rows}
       <div class="actions">
-        <button class="save" type="submit" name="action" value="save">Save changes</button>
-        <button class="reset" type="submit" name="action" value="reset">Reset all to default</button>
+        <button class="save" type="submit" name="action" value="save">Save</button>
+        <button class="reset" type="submit" name="action" value="reset">Reset all</button>
       </div>
     </form>
-    <div class="foot">"Reset all to default" takes every field above back to its default (${FIELDS.map((f) => `${escapeHtml(f.label)}: ${escapeHtml(getPath(DEFAULTS, f.path))}`).join('; ')}) and doesn't touch anything else. This page has no password -- anyone with the /backstage link can view and change it, so don't post this URL anywhere public.</div>
   </div>
 </body>
 </html>`;
@@ -217,22 +202,27 @@ module.exports = withCors(async (req, res) => {
       // is carried through untouched, whatever it's currently set to in Edge Config.
       const existing = { ...((await getRawOverrides()) || {}) };
 
-      if (action === 'reset') {
+      for (const k of RETIRED_KEYS) delete existing[k];
+      const resetOne = FIELDS.find((f) => f.key === params.reset);
+
+      if (resetOne) {
+        // Per-field Reset: only that field goes back to default; the other field keeps its
+        // SAVED value (unsaved edits in it are discarded, same as a normal page reload).
+        delete existing[resetOne.key];
+        message = `${resetOne.label} reset to default.`;
+      } else if (action === 'reset') {
         for (const f of FIELDS) delete existing[f.key];
-        await writeEdgeConfigItem('topTwentyConfig', existing);
-        justWrittenCfg = mergeDeep(DEFAULTS, existing);
-        message = 'Poster, backdrop and landscape image settings reset to their defaults. Nothing else was changed.';
+        message = 'All fields reset to default.';
       } else {
         for (const f of FIELDS) {
-          const raw = params[f.key];
-          if (raw === undefined || raw === '') continue;
-          if (f.type === 'select' && !f.options.some((o) => o.value === raw)) continue;
-          existing[f.key] = raw;
+          const raw = (params[f.key] || '').trim();
+          if (!raw || raw === getPath(DEFAULTS, f.path)) delete existing[f.key];
+          else existing[f.key] = raw;
         }
-        await writeEdgeConfigItem('topTwentyConfig', existing);
-        justWrittenCfg = mergeDeep(DEFAULTS, existing);
-        message = 'Saved. Give it a few seconds to take effect.';
+        message = 'Saved.';
       }
+      await writeEdgeConfigItem('topTwentyConfig', existing);
+      justWrittenCfg = mergeDeep(DEFAULTS, existing);
       // Don't trust a getConfig() re-read here -- it can still be serving a value
       // cached from just before this write (up to CACHE_MS old), which makes a
       // successful save look like it silently reverted (the actual bug this fixes).

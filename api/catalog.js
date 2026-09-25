@@ -20,6 +20,13 @@
 // same /poster/... endpoint as `poster`, with `shape=landscape` and `bp=` (TMDB's
 // backdrop_path) telling api/poster.js which image source and layout to use.
 //
+// Update: the edited landscape card now goes in `landscapePoster` (a Nuvio field, read first for
+// landscape cards -- NuvioTV ModernHomeRows.kt), and `background` is a CLEAN, unbadged TMDB
+// backdrop. Clients without `landscapePoster` support (e.g. Wuplay) use `background` as their
+// full-screen backdrop, so they were showing our badged card blown up. Now backdrop and
+// landscape card are separate images everywhere: backdrop = top-voted textless main art,
+// card = the distinct alternate from lib/art.js with rank/pill/vignette.
+//
 // `logo` (TMDB clearlogo) is sent too: Nuvio TV draws it over landscape cards itself, and
 // only fetches one lazily near focus if the catalog doesn't supply it. Because Nuvio adds
 // its own logo, the landscape base image must stay logo-free (bp is a textless backdrop,
@@ -90,11 +97,10 @@ module.exports = withCors(async (req, res) => {
       params.set('ctx', item.context);
     }
 
-    // `background`: same rank badge + status pill as `poster`, laid out for a wide frame
-    // (see lib/badge.js's shape='landscape' branch), routed through the same /poster/...
-    // endpoint. Only set when TMDB actually has a backdrop for this title -- same
-    // no-backdrop-means-no-field behavior as before this change.
-    let background;
+    // `landscapePoster`: same rank badge + status pill as `poster`, laid out for a wide frame
+    // (see lib/badge.js's shape='landscape' branch, which also adds the corner vignette),
+    // routed through the same /poster/... endpoint. Only set when TMDB has a backdrop.
+    let landscapePoster;
     if (item.backdrop_path) {
       const bgParams = new URLSearchParams();
       bgParams.set('shape', 'landscape');
@@ -107,7 +113,7 @@ module.exports = withCors(async (req, res) => {
       if (item.context) {
         bgParams.set('ctx', item.context);
       }
-      background = `${base}/poster/${type}/${item.imdbId}/${rank}.jpg?${bgParams.toString()}`;
+      landscapePoster = `${base}/poster/${type}/${item.imdbId}/${rank}.jpg?${bgParams.toString()}`;
     }
 
     return {
@@ -117,7 +123,11 @@ module.exports = withCors(async (req, res) => {
       releaseInfo: item.releaseInfo || undefined,
       poster: `${base}/poster/${type}/${item.imdbId}/${rank}.jpg?${params.toString()}`,
       posterShape: 'poster',
-      background,
+      // Clean backdrop, no overlays. Falls back to the card art only if TMDB has no main one.
+      background: item.main_backdrop_path
+        ? `https://image.tmdb.org/t/p/original${item.main_backdrop_path}`
+        : landscapePoster,
+      landscapePoster,
       // TMDB clearlogo. Nuvio TV draws this over landscape cards; without it in the catalog,
       // Nuvio only fetches a logo for items near focus, so logos popped in late. See
       // pickLogo() in lib/tmdb.js for the language/format preference.
