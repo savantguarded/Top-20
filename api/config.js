@@ -28,23 +28,43 @@ const { withCors } = require('../lib/cors');
 // other tunable (region, catalog size, status-label day windows, etc.) still lives in Edge
 // Config and still works exactly as before -- it's just not editable from this simplified
 // page anymore. Edit those directly in Vercel's Edge Config "Items" tab if you ever need to.
+const LANDSCAPE_OPTIONS = [
+  { value: 'tmdb-logo', label: 'TMDB with logo' },
+  { value: 'alternate', label: 'TMDB alternate + clearlogo' },
+  { value: 'custom', label: 'Custom URL' },
+];
+
+// `showIf`: the field only renders (and only saves) when landscapeArt matches.
 const FIELDS = [
   {
     key: 'posterUrlTemplate',
     label: 'Portrait poster URL',
+    type: 'text',
     path: ['posterUrlTemplate'],
+  },
+  {
+    key: 'landscapeArt',
+    label: 'Landscape art',
+    type: 'select',
+    options: LANDSCAPE_OPTIONS,
+    path: ['landscapeArt'],
   },
   {
     key: 'backdropUrlTemplate',
     label: 'Landscape poster URL',
+    type: 'text',
+    showIf: 'custom',
     path: ['backdropUrlTemplate'],
   },
 ];
 
-// Keys this page used to manage but no longer shows. Dropped from Edge Config on any save or
-// reset so a stale value can't linger (e.g. the removed landscapeArt 'main' option -- landscape
-// cards now always use the alternate TMDB image, see lib/tmdb.js).
-const RETIRED_KEYS = ['landscapeArt'];
+// Keys this page used to manage but no longer shows. Dropped from Edge Config on any save or reset.
+const RETIRED_KEYS = [];
+
+/** Legacy 'main' (and anything unknown) reads as the default. */
+function landscapeMode(cfg) {
+  return LANDSCAPE_OPTIONS.some((o) => o.value === cfg.landscapeArt) ? cfg.landscapeArt : DEFAULTS.landscapeArt;
+}
 
 function escapeHtml(str) {
   return String(str)
@@ -116,14 +136,19 @@ async function parseFormBody(req) {
 }
 
 function renderPage({ cfg, message, error }) {
+  const mode = landscapeMode(cfg);
   const rows = FIELDS.map((f) => {
-    const value = getPath(cfg, f.path);
+    const value = f.key === 'landscapeArt' ? mode : getPath(cfg, f.path);
     const def = getPath(DEFAULTS, f.path);
+    const control = f.type === 'select'
+      ? `<select name="${f.key}" id="f-${f.key}">${f.options.map((o) => `<option value="${escapeHtml(o.value)}"${o.value === value ? ' selected' : ''}>${escapeHtml(o.label)}</option>`).join('')}</select>`
+      : `<input type="text" name="${f.key}" value="${escapeHtml(value)}" placeholder="${escapeHtml(def)}" spellcheck="false" autocomplete="off" />`;
+    const hidden = f.showIf && mode !== f.showIf ? ' hidden' : '';
     return `
-      <label class="field">
+      <label class="field"${f.showIf ? ` data-show-if="${f.showIf}"` : ''}${hidden}>
         <span class="field-label">${escapeHtml(f.label)}</span>
         <span class="row">
-          <input type="text" name="${f.key}" value="${escapeHtml(value)}" placeholder="${escapeHtml(def)}" spellcheck="false" autocomplete="off" />
+          ${control}
           <button class="reset-one" type="submit" name="reset" value="${f.key}" title="Reset to default"${value === def ? ' disabled' : ''}>Reset</button>
         </span>
       </label>`;
@@ -157,7 +182,13 @@ function renderPage({ cfg, message, error }) {
     background: #1a1b20; border: 1px solid #2c2d34; color: #e8e8ec;
     border-radius: 6px; padding: 10px 12px; font-size: 0.95rem;
   }
-  input:focus { outline: none; border-color: #5b7cff; }
+  select {
+    flex: 1; min-width: 0;
+    background: #1a1b20; border: 1px solid #2c2d34; color: #e8e8ec;
+    border-radius: 6px; padding: 10px 12px; font-size: 0.95rem;
+  }
+  input:focus, select:focus { outline: none; border-color: #5b7cff; }
+  [hidden] { display: none !important; }
   .actions { display: flex; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
   button {
     border: none; border-radius: 6px; padding: 11px 18px; font-size: 0.92rem; font-weight: 600;
@@ -182,6 +213,14 @@ function renderPage({ cfg, message, error }) {
       </div>
     </form>
   </div>
+  <script>
+    // Show the URL field only while "Custom URL" is picked (the server renders the same state).
+    const sel = document.getElementById('f-landscapeArt');
+    const sync = () => document.querySelectorAll('[data-show-if]').forEach((el) => {
+      el.hidden = sel.value !== el.dataset.showIf;
+    });
+    sel.addEventListener('change', sync);
+  </script>
 </body>
 </html>`;
 }
@@ -214,8 +253,12 @@ module.exports = withCors(async (req, res) => {
         for (const f of FIELDS) delete existing[f.key];
         message = 'All fields reset to default.';
       } else {
+        const newMode = LANDSCAPE_OPTIONS.some((o) => o.value === params.landscapeArt) ? params.landscapeArt : null;
         for (const f of FIELDS) {
+          // A hidden field keeps its saved value (e.g. a custom URL survives switching away and back).
+          if (f.showIf && newMode !== f.showIf) continue;
           const raw = (params[f.key] || '').trim();
+          if (f.type === 'select' && !f.options.some((o) => o.value === raw)) continue;
           if (!raw || raw === getPath(DEFAULTS, f.path)) delete existing[f.key];
           else existing[f.key] = raw;
         }

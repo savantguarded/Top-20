@@ -77,7 +77,13 @@ module.exports = withCors(async (req, res) => {
   // Same cache-busting idea as posterTag, but for the backdrop/landscape provider -- kept as
   // a SEPARATE tag so swapping one provider via /backstage doesn't needlessly invalidate the
   // other shape's already-cached poster URLs.
-  const backdropTag = crypto.createHash('sha1').update(cfg.backdropUrlTemplate || '').digest('hex').slice(0, 8);
+  // Landscape art mode (see lib/config.js). Legacy/unknown values read as 'alternate'.
+  const artMode = ['tmdb-logo', 'alternate', 'custom'].includes(cfg.landscapeArt) ? cfg.landscapeArt : 'alternate';
+  // The mode is part of the tag, so switching modes gives every card a fresh URL too. v2 marks
+  // the logo/vignette render change so already-cached old cards aren't reused.
+  const backdropTag = crypto.createHash('sha1')
+    .update(`v2|${artMode}|${artMode === 'custom' ? cfg.backdropUrlTemplate || '' : ''}`)
+    .digest('hex').slice(0, 8);
 
   const metas = items.map((item, idx) => {
     const rank = idx + 1;
@@ -100,13 +106,27 @@ module.exports = withCors(async (req, res) => {
     // `landscapePoster`: same rank badge + status pill as `poster`, laid out for a wide frame
     // (see lib/badge.js's shape='landscape' branch, which also adds the corner vignette),
     // routed through the same /poster/... endpoint. Only set when TMDB has a backdrop.
+    // Which base image, and whether we draw the clearlogo onto it:
+    //  - tmdb-logo: TMDB backdrop with the logo already in it; no drawn logo. If TMDB has none,
+    //    fall back to the alternate + drawn logo so the card is never logo-less.
+    //  - alternate: clean textless alternate + drawn logo.
+    //  - custom: provider template (brings its own logo); no drawn logo.
+    let cardPath = item.backdrop_path;
+    let drawLogo = artMode === 'alternate';
+    if (artMode === 'tmdb-logo') {
+      if (item.logo_backdrop_path) cardPath = item.logo_backdrop_path;
+      else drawLogo = true;
+    }
+
     let landscapePoster;
-    if (item.backdrop_path) {
+    if (cardPath) {
       const bgParams = new URLSearchParams();
       bgParams.set('shape', 'landscape');
       bgParams.set('pv', backdropTag);
+      bgParams.set('art', artMode === 'custom' ? 'custom' : 'tmdb');
       bgParams.set('corner', corner);
-      bgParams.set('bp', item.backdrop_path);
+      bgParams.set('bp', cardPath);
+      if (drawLogo && item.logo_path) bgParams.set('lg', item.logo_path);
       if (item.tmdbId) {
         bgParams.set('tmdb', item.tmdbId);
       }

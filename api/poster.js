@@ -85,7 +85,7 @@ function buildPosterUrl(template, { imdbId, tmdbId, type, backdropPath }) {
 }
 
 module.exports = withCors(async (req, res) => {
-  const { type, imdb, tmdb, rank, fallback, ctx, corner, shape, bp } = req.query;
+  const { type, imdb, tmdb, rank, fallback, ctx, corner, shape, bp, art, lg } = req.query;
   const rankNum = Math.max(1, parseInt(rank, 10) || 1);
   // 'tl' (top-left, original) unless the /stremio/ manifest flavor asked for 'tr' -- see
   // api/catalog.js, which sets this on every poster URL it hands out.
@@ -101,7 +101,13 @@ module.exports = withCors(async (req, res) => {
   }
 
   const cfg = await getConfig();
-  const template = imgShape === 'landscape' ? cfg.backdropUrlTemplate : cfg.posterUrlTemplate;
+  // Landscape: only `art=custom` uses the configured backdropUrlTemplate. The TMDB modes
+  // ('tmdb-logo', 'alternate') always read TMDB's own image for `bp` directly, so a leftover
+  // custom template can't leak into them. Portrait is unchanged.
+  const TMDB_BACKDROP = 'https://image.tmdb.org/t/p/w1280{backdrop_path}';
+  const template = imgShape === 'landscape'
+    ? (art === 'custom' ? cfg.backdropUrlTemplate : TMDB_BACKDROP)
+    : cfg.posterUrlTemplate;
   let posterBuffer = null;
 
   try {
@@ -134,8 +140,20 @@ module.exports = withCors(async (req, res) => {
     return;
   }
 
+  // Clearlogo to draw bottom-left (landscape only, set by api/catalog.js when the base image has
+  // no logo of its own). If it can't be fetched the card still renders, just without a logo.
+  let logoBuffer = null;
+  if (imgShape === 'landscape' && lg && /^\/[\w.-]+$/.test(lg)) {
+    try {
+      const r3 = await fetchWithTimeout(`https://image.tmdb.org/t/p/w500${lg}`, FALLBACK_FETCH_TIMEOUT_MS);
+      if (r3.ok) logoBuffer = Buffer.from(await r3.arrayBuffer());
+    } catch {
+      // no logo
+    }
+  }
+
   try {
-    const out = await applyOverlays(posterBuffer, { rank: rankNum, statusLabel: ctx || null, corner: badgeCorner, shape: imgShape });
+    const out = await applyOverlays(posterBuffer, { rank: rankNum, statusLabel: ctx || null, corner: badgeCorner, shape: imgShape, logo: logoBuffer });
     res.setHeader('Content-Type', 'image/jpeg');
     // Deliberately much shorter than api/catalog.js's own 1-hour cache. The catalog listing
     // (which titles are in the Top 20, their rank order) is meant to only change on that slow
