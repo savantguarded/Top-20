@@ -166,6 +166,10 @@ function renderPage({ cfg, message, error }) {
       el.hidden = document.getElementById('f-' + el.dataset.if).value !== el.dataset.is;
     });
     document.querySelectorAll('select').forEach((s) => s.addEventListener('change', sync));
+    // After a save, turn this entry into a plain GET so a refresh reloads the page instead of
+    // re-sending the form (which re-showed the banner), and fade the banner out.
+    history.replaceState(null, '', '/backstage');
+    setTimeout(() => document.querySelectorAll('.banner').forEach((b) => b.remove()), 4000);
   </script>
 </body>
 </html>`;
