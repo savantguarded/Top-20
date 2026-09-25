@@ -24,7 +24,7 @@ No database or cron: catalogs are edge-cached for an hour and rebuild themselves
    - `MDBLIST_API_KEY` (optional, fills `{mdblist_key}` in provider URLs)
 3. Deploy. Install `https://<project>.vercel.app/manifest.json` in Nuvio, or `/stremio/manifest.json` in Stremio (rank badge top-right, clear of Stremio's watched checkmark).
 
-## Settings page: `/backstage`
+## Settings page: `/backstage-<key>`
 
 | Setting | Options |
 | --- | --- |
@@ -39,16 +39,17 @@ One-time setup:
 
 1. Vercel → Storage → create an **Edge Config** store and connect it (adds `EDGE_CONFIG`).
 2. Create a Vercel API token (Account Settings → Tokens) and add it as `VERCEL_API_TOKEN`. Team projects also need `VERCEL_TEAM_ID`.
-3. Redeploy.
+3. Add `BACKSTAGE_KEY` (any string: the page lives at `/backstage-<that string>`).
+4. Redeploy.
 
-`/backstage` has no password, so keep the URL private. Other tunables (region, catalog size, label windows; see `DEFAULTS` in `lib/config.js`) can be set in the Edge Config item `topTwentyConfig` directly.
+Set `BACKSTAGE_KEY` in Vercel to choose `<key>`; without it the page is disabled. Other tunables (region, catalog size, label windows; see `DEFAULTS` in `lib/config.js`) can be set in the Edge Config item `topTwentyConfig` directly.
 
 ## Layout
 
 ```
 api/catalog.js   catalog JSON, picks art per setting
 api/poster.js    renders a card (provider or TMDB image + overlays)
-api/config.js    /backstage
+api/config.js    settings page
 api/meta.js      fallback meta (lib/meta.js); list this addon after your main meta addon
 lib/tmdb.js      trending, eligibility, status labels, art paths
 lib/badge.js     rank badge, pill, vignette, clearlogo compositing

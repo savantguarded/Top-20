@@ -1,10 +1,10 @@
 // api/config.js
-// /backstage (see vercel.json): the settings page. Reads/writes the "topTwentyConfig" Edge Config
-// item that lib/config.js reads, touching only the keys in FIELDS (other tunables stay editable
-// in Vercel's Edge Config "Items" tab). Saves also drop the cached catalogs so changes show on
+// /backstage-<key> (see vercel.json): the settings page. Only served when <key> matches the
+// BACKSTAGE_KEY env var (kept out of this public repo); anything else, /api/config included, 404s.
+// Reads/writes the "topTwentyConfig" Edge Config item that lib/config.js reads, touching only
+// the keys in FIELDS (other tunables stay editable in Vercel's Edge Config "Items" tab). Saves also drop the cached catalogs so changes show on
 // the next catalog request.
-// Needs VERCEL_API_TOKEN (and VERCEL_TEAM_ID for team projects). No password by design: keep the
-// URL private.
+// Needs VERCEL_API_TOKEN (and VERCEL_TEAM_ID for team projects).
 
 const { DEFAULTS, ART_MODES, resolveConfig, primeCache, getConfig, getRawOverrides } = require('../lib/config');
 const { withCors } = require('../lib/cors');
@@ -98,7 +98,7 @@ function applyForm(existing, params) {
   return 'Saved.';
 }
 
-function renderPage({ cfg, message, error }) {
+function renderPage({ cfg, message, error, path }) {
   const rows = FIELDS.map((f) => {
     const value = cfg[f.key];
     const def = DEFAULTS[f.key];
@@ -153,7 +153,7 @@ function renderPage({ cfg, message, error }) {
     <h1>Top Charts Today</h1>
     ${message ? `<div class="banner ok">${escapeHtml(message)}</div>` : ''}
     ${error ? `<div class="banner err">${escapeHtml(error)}</div>` : ''}
-    <form method="POST" action="/backstage">
+    <form method="POST" action="${path}">
       ${rows}
       <div class="actions">
         <button class="primary" type="submit" name="action" value="save">Save</button>
@@ -168,7 +168,7 @@ function renderPage({ cfg, message, error }) {
     document.querySelectorAll('select').forEach((s) => s.addEventListener('change', sync));
     // After a save, turn this entry into a plain GET so a refresh reloads the page instead of
     // re-sending the form (which re-showed the banner), and fade the banner out.
-    history.replaceState(null, '', '/backstage');
+    history.replaceState(null, '', location.pathname);
     setTimeout(() => document.querySelectorAll('.banner').forEach((b) => b.remove()), 4000);
   </script>
 </body>
@@ -176,6 +176,11 @@ function renderPage({ cfg, message, error }) {
 }
 
 module.exports = withCors(async (req, res) => {
+  const key = process.env.BACKSTAGE_KEY;
+  if (!key || req.query.key !== key) {
+    res.status(404).send('Not found');
+    return;
+  }
   let message = null;
   let error = null;
   let cfg = null;
@@ -195,5 +200,5 @@ module.exports = withCors(async (req, res) => {
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
-  res.status(200).send(renderPage({ cfg: cfg || (await getConfig()), message, error }));
+  res.status(200).send(renderPage({ cfg: cfg || (await getConfig()), message, error, path: `/backstage-${key}` }));
 });

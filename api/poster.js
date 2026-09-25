@@ -88,9 +88,9 @@ module.exports = withCors(async (req, res) => {
       vignette: shape === 'landscape' || src === 'tmdb',
     });
     res.setHeader('Content-Type', 'image/jpeg');
-    // Short: a provider swap reaches fresh requests within about a minute. Card URLs change
-    // whenever art settings change (catalog `v` tag), so this never serves stale settings.
-    res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=300');
+    // A day: card URLs already change with every rank, label or art-setting change (catalog `v`
+    // tag), so the same URL always means the same image. Only re-render when one is new.
+    res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=86400, stale-while-revalidate=3600');
     res.status(200).send(out);
   } catch (e) {
     res.status(500).json({ err: String((e && e.message) || e) });
