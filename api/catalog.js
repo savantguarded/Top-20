@@ -157,6 +157,8 @@ module.exports = withCors(async (req, res) => {
 
   // 1-hour edge cache, background revalidation, zero maintenance.
   res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=3600, stale-while-revalidate=1200');
+  // Lets /backstage drop every cached catalog the moment settings are saved (api/config.js).
+  res.setHeader('Vercel-Cache-Tag', 'catalog');
   res.setHeader('Content-Type', 'application/json');
   res.status(200).send(JSON.stringify({ metas }));
 });

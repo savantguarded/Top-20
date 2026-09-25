@@ -29,8 +29,8 @@ const { withCors } = require('../lib/cors');
 // Config and still works exactly as before -- it's just not editable from this simplified
 // page anymore. Edit those directly in Vercel's Edge Config "Items" tab if you ever need to.
 const LANDSCAPE_OPTIONS = [
-  { value: 'tmdb-logo', label: 'TMDB with logo' },
-  { value: 'alternate', label: 'TMDB alternate + clearlogo' },
+  { value: 'tmdb-logo', label: 'Default TMDB' },
+  { value: 'alternate', label: 'Alternate TMDB' },
   { value: 'custom', label: 'Custom URL' },
 ];
 
@@ -116,6 +116,32 @@ async function writeEdgeConfigItem(key, value) {
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Vercel API ${res.status}: ${text}`);
+  }
+}
+
+/**
+ * Drop the cached catalogs so a settings change shows up on the very next catalog request,
+ * instead of after the 1-hour edge cache expires. api/catalog.js tags its responses
+ * `catalog` (Vercel-Cache-Tag); this deletes that tag via Vercel's REST API, reusing
+ * VERCEL_API_TOKEN. Delete rather than invalidate, so the next request is fresh rather than
+ * stale-once. Only ever 4 small catalog URLs, so no stampede risk. Never fails the save.
+ */
+async function purgeCatalogCache() {
+  const apiToken = process.env.VERCEL_API_TOKEN;
+  const project = process.env.VERCEL_PROJECT_ID;
+  if (!apiToken || !project) return false;
+  const teamId = process.env.VERCEL_TEAM_ID;
+  const qs = new URLSearchParams({ projectIdOrName: project });
+  if (teamId) qs.set('teamId', teamId);
+  try {
+    const r = await fetch(`https://api.vercel.com/v1/edge-cache/dangerously-delete-by-tags?${qs}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tags: ['catalog'], target: 'production' }),
+    });
+    return r.ok;
+  } catch {
+    return false;
   }
 }
 
@@ -266,6 +292,8 @@ module.exports = withCors(async (req, res) => {
       }
       await writeEdgeConfigItem('topTwentyConfig', existing);
       justWrittenCfg = mergeDeep(DEFAULTS, existing);
+      const purged = await purgeCatalogCache();
+      message += purged ? ' Catalogs refreshed.' : ' Catalogs update within the hour.';
       // Don't trust a getConfig() re-read here -- it can still be serving a value
       // cached from just before this write (up to CACHE_MS old), which makes a
       // successful save look like it silently reverted (the actual bug this fixes).
