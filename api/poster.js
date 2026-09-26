@@ -2,7 +2,8 @@
 // /poster/:type/:imdb/:rank.jpg -- renders one card image (see vercel.json, api/catalog.js).
 // Query: shape (portrait|landscape), src (tmdb|betterposters|custom), img (TMDB image path:
 // the base for src=tmdb, the fallback otherwise), lg (TMDB clearlogo path to draw), ctx (status
-// label), corner (tl|tr), tmdb (TMDB id), v (cache tag, unused here).
+// label), corner (tl|tr), tmdb (TMDB id), pv (TMDB streaming-service logo path, landscape only),
+// v (cache tag, unused here).
 // Provider sources fall back to TMDB's own image if they fail or are slow, so a card always renders.
 
 const { applyOverlays } = require('../lib/badge');
@@ -75,7 +76,11 @@ module.exports = withCors(async (req, res) => {
     return;
   }
 
-  const logo = q.lg && TMDB_PATH.test(q.lg) ? await fetchImage(`https://image.tmdb.org/t/p/w500${q.lg}`, TMDB_TIMEOUT_MS) : null;
+  const wantProvider = shape === 'landscape' && q.pv && TMDB_PATH.test(q.pv);
+  const [logo, providerLogo] = await Promise.all([
+    q.lg && TMDB_PATH.test(q.lg) ? fetchImage(`https://image.tmdb.org/t/p/w500${q.lg}`, TMDB_TIMEOUT_MS) : null,
+    wantProvider ? fetchImage(`https://image.tmdb.org/t/p/w154${q.pv}`, TMDB_TIMEOUT_MS) : null,
+  ]);
 
   try {
     const out = await applyOverlays(image, {
@@ -84,6 +89,7 @@ module.exports = withCors(async (req, res) => {
       corner,
       shape,
       logo,
+      providerLogo,
       // Portrait: vignette only on TMDB art (providers style their own). Landscape: always.
       vignette: shape === 'landscape' || src === 'tmdb',
     });

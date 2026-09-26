@@ -4,7 +4,7 @@
 //  - poster:          portrait card from /poster (rank, status pill, art per Portrait art)
 //  - landscapePoster: landscape card from /poster (art per Landscape art). Nuvio reads this
 //                     first for landscape cards and draws nothing over it, so every mode ships
-//                     its logo baked in.
+//                     its logo baked in, plus the top streaming service's logo (bottom right).
 //  - background:      clean TMDB backdrop, no overlays (full-screen backdrop in Wuplay, etc.)
 //  - logo:            TMDB clearlogo, for clients that use it elsewhere
 // Detail pages stay the metadata addon's job (and lib/meta.js as fallback).
@@ -70,7 +70,9 @@ module.exports = withCors(async (req, res) => {
 
   const metas = items.map((item, idx) => {
     const rank = idx + 1;
-    const landscapePoster = cardUrl(base, type, item, rank, landscapeArt(item, cfg.landscapeArt), { shape: 'landscape', v: landscapeTag, corner });
+    const landscapeExtra = { shape: 'landscape', v: landscapeTag, corner };
+    if (item.provider_logo_path) landscapeExtra.pv = item.provider_logo_path;
+    const landscapePoster = cardUrl(base, type, item, rank, landscapeArt(item, cfg.landscapeArt), landscapeExtra);
     return {
       id: item.imdbId,
       type,

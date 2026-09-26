@@ -5,7 +5,7 @@ Two catalogs, ranked daily from TMDB trending:
 - **Top Movies Today**: out digitally or on disc in the US (or digital release within 3 days).
 - **Top Shows Today**: already airing, or premiering within 7 days.
 
-Every card gets a glossy rank number and a status pill ("Just Added", "New Episode", "Season Finale Oct 2", ...). Each catalog item carries:
+Every card gets a glossy rank number and a status pill ("Just Added", "Airing Today", "Streaming Oct 3", "Season Finale Oct 2", ...). Landscape cards also show the top US subscription service carrying the title (bottom right), when there is one. Each catalog item carries:
 
 | Field | What it is |
 | --- | --- |
@@ -15,6 +15,8 @@ Every card gets a glossy rank number and a status pill ("Just Added", "New Episo
 | `logo` | TMDB clearlogo |
 
 No database or cron: catalogs are edge-cached for an hour and rebuild themselves.
+
+Streaming availability data is provided by [JustWatch](https://www.justwatch.com), via TMDB.
 
 ## Deploy
 
