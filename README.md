@@ -18,6 +18,8 @@ No database or cron: catalogs are edge-cached for an hour and rebuild themselves
 
 Streaming availability data is provided by [JustWatch](https://www.justwatch.com), via TMDB.
 
+Dates follow the Africa/Lagos calendar (`TIMEZONE` in `lib/tmdb.js`). Episodes airing within a day of today are re-dated from their exact [TVmaze](https://www.tvmaze.com) airstamp, so a Sunday 9pm ET episode reads "Airing Today" on Monday in Lagos.
+
 ## Deploy
 
 1. Import this repo into Vercel.
