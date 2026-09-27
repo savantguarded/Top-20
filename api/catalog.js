@@ -72,7 +72,7 @@ module.exports = withCors(async (req, res) => {
   const base = `https://${req.headers['x-forwarded-host'] || req.headers.host}`;
   const posterTemplate = { betterposters: BETTER_POSTERS_URL, custom: cfg.posterUrlTemplate }[cfg.posterArt] || '';
   const portraitTag = tag('portrait', cfg.posterArt, posterTemplate);
-  const landscapeTag = tag('landscape', cfg.landscapeArt, cfg.landscapeArt === 'custom' ? cfg.backdropUrlTemplate : '');
+  const landscapeTag = tag('landscape-960', cfg.landscapeArt, cfg.landscapeArt === 'custom' ? cfg.backdropUrlTemplate : '');
 
   const metas = items.map((item, idx) => {
     const rank = idx + 1;

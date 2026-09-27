@@ -168,10 +168,11 @@ function renderPage({ cfg, message, error, path, base }) {
     </form>
     <section class="install">
       <h2>Install link</h2>
-      <p class="hint">Picks the card shape in Nuvio (leave its Landscape posters toggle off). Not saved: each link is its own install, so switching here never changes an existing one.</p>
-      <div class="toggle" role="group" aria-label="Poster shape">
+      <p class="hint">Portrait and Landscape are for Nuvio (leave its Landscape posters toggle off). Stremio puts the rank badge top-right, clear of its watched checkmark. Not saved: each link is its own install, so switching here never changes an existing one.</p>
+      <div class="toggle" role="group" aria-label="Install type">
         <button type="button" data-url="${base}/manifest.json" aria-pressed="true">Portrait</button>
         <button type="button" data-url="${base}/landscape/manifest.json" aria-pressed="false">Landscape</button>
+        <button type="button" data-url="${base}/stremio/manifest.json" aria-pressed="false">Stremio</button>
       </div>
       <span class="row">
         <input type="text" id="install-url" value="${base}/manifest.json" readonly spellcheck="false" />
