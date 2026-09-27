@@ -2,7 +2,7 @@
   "name": "topcharts-addon",
   "version": "1.0.0",
   "private": true,
-  "description": "Stremio addon: Top Movies Today (digital/home release, US) and Top Shows Today, ranked via TMDB with glossy rank-badge posters.",
+  "description": "Daily Charts, a Nuvio addon: Top Movies Today (digital/home release, US) and Top Shows Today, ranked via TMDB with glossy rank-badge posters.",
   "license": "MIT",
   "engines": {
     "node": ">=18"

@@ -2,6 +2,7 @@
 // /catalog/:type/:id.json -- the ranked list as Stremio meta previews (see vercel.json).
 // Per item:
 //  - poster:          portrait card from /poster (rank, status pill, art per Portrait art)
+//                     Alternate TMDB art (both shapes) rotates daily per title (lib/art.js).
 //  - landscapePoster: landscape card from /poster (art per Landscape art). Nuvio reads this
 //                     first for landscape cards and draws nothing over it, so every mode ships
 //                     its logo baked in, plus the top streaming service's logo (bottom right).
@@ -14,6 +15,7 @@ const crypto = require('crypto');
 const { getTopMovies, getTopShows } = require('../lib/tmdb');
 const { withCors } = require('../lib/cors');
 const { getConfig, BETTER_POSTERS_URL } = require('../lib/config');
+const { pickRotating } = require('../lib/art');
 
 // Bump when the rendering changes, so clients re-fetch cards instead of reusing cached ones.
 const RENDER_VERSION = 3;
@@ -21,17 +23,19 @@ const RENDER_VERSION = 3;
 const tag = (...parts) => crypto.createHash('sha1').update([RENDER_VERSION, ...parts].join('|')).digest('hex').slice(0, 8);
 
 /** { src, img, lg } for the portrait card. Alternate falls back to TMDB's poster (no logo). */
-function portraitArt(item, mode) {
+function portraitArt(item, mode, cfg) {
   if (mode === 'betterposters' || mode === 'custom') return { src: mode, img: item.poster_path };
-  if (mode === 'alternate' && item.textless_poster_path) return { src: 'tmdb', img: item.textless_poster_path, lg: item.logo_path };
+  const alt = mode === 'alternate' && pickRotating(item.posterPool, `${item.imdbId}|portrait`, cfg.artRotationHours);
+  if (alt) return { src: 'tmdb', img: alt, lg: item.logo_path };
   return { src: 'tmdb', img: item.poster_path };
 }
 
 /** { src, img, lg } for the landscape card. Default TMDB falls back to alternate + our logo. */
-function landscapeArt(item, mode) {
+function landscapeArt(item, mode, cfg) {
   if (mode === 'custom') return { src: 'custom', img: item.backdrop_path };
   if (mode === 'tmdb' && item.logo_backdrop_path) return { src: 'tmdb', img: item.logo_backdrop_path };
-  return { src: 'tmdb', img: item.backdrop_path, lg: item.logo_path };
+  const img = pickRotating(item.backdropPool, `${item.imdbId}|landscape`, cfg.artRotationHours) || item.backdrop_path;
+  return { src: 'tmdb', img, lg: item.logo_path };
 }
 
 function cardUrl(base, type, item, rank, art, extra) {
@@ -46,8 +50,6 @@ function cardUrl(base, type, item, rank, art, extra) {
 
 module.exports = withCors(async (req, res) => {
   const { type, id } = req.query;
-  // 'tr' for the /stremio/ install (clears Stremio's own top-left watched checkmark).
-  const corner = req.query.corner === 'tr' ? 'tr' : 'tl';
   // The /landscape/ install: wide cards in Nuvio with its Landscape posters toggle off. With the
   // toggle off Nuvio always draws `poster` (only the toggle makes it read landscapePoster), so
   // this install ships the landscape card as `poster` too, in a landscape-shaped slot. Toggle on,
@@ -76,15 +78,15 @@ module.exports = withCors(async (req, res) => {
 
   const metas = items.map((item, idx) => {
     const rank = idx + 1;
-    const landscapeExtra = { shape: 'landscape', v: landscapeTag, corner };
+    const landscapeExtra = { shape: 'landscape', v: landscapeTag };
     if (item.provider_logo_path) landscapeExtra.pv = item.provider_logo_path;
-    const landscapePoster = cardUrl(base, type, item, rank, landscapeArt(item, cfg.landscapeArt), landscapeExtra);
+    const landscapePoster = cardUrl(base, type, item, rank, landscapeArt(item, cfg.landscapeArt, cfg), landscapeExtra);
     return {
       id: item.imdbId,
       type,
       name: item.name,
       releaseInfo: item.releaseInfo || undefined,
-      poster: (landscapeLayout && landscapePoster) || cardUrl(base, type, item, rank, portraitArt(item, cfg.posterArt), { v: portraitTag, corner }),
+      poster: (landscapeLayout && landscapePoster) || cardUrl(base, type, item, rank, portraitArt(item, cfg.posterArt, cfg), { v: portraitTag }),
       posterShape,
       background: item.main_backdrop_path ? `https://image.tmdb.org/t/p/original${item.main_backdrop_path}` : landscapePoster,
       landscapePoster,

@@ -1,4 +1,4 @@
-# Top Charts Today (Stremio / Nuvio addon)
+# Daily Charts (Nuvio addon)
 
 Two catalogs, ranked daily from TMDB trending:
 
@@ -26,8 +26,8 @@ Dates follow the Africa/Lagos calendar (`TIMEZONE` in `lib/tmdb.js`). Episodes a
 2. Environment variables:
    - `TMDB_API_KEY` (required)
    - `MDBLIST_API_KEY` (optional, fills `{mdblist_key}` in provider URLs)
-3. Deploy. Install `https://<project>.vercel.app/manifest.json` in Nuvio, or `/stremio/manifest.json` in Stremio (rank badge top-right, clear of Stremio's watched checkmark).
-   For wide cards in Nuvio with its Landscape posters toggle left off, install `/landscape/manifest.json` instead. It has its own id, so it sits alongside a portrait install and changes nothing for other installs or clients. The settings page builds any of the three links (Portrait / Landscape / Stremio toggle, not saved).
+3. Deploy. Install `https://<project>.vercel.app/manifest.json` in Nuvio.
+   For wide cards with Nuvio's Landscape posters toggle left off, install `/landscape/manifest.json` instead. Same name, its own id, so it sits alongside a portrait install and changes nothing for other installs. The settings page builds either link (Portrait / Landscape toggle, not saved).
 
 ## Settings page: `/backstage-<key>`
 
@@ -35,10 +35,13 @@ Dates follow the Africa/Lagos calendar (`TIMEZONE` in `lib/tmdb.js`). Episodes a
 | --- | --- |
 | Portrait art | Default TMDB, Alternate TMDB (textless + clearlogo), BetterPosters, Custom URL |
 | Landscape art | Default TMDB (logo in image), Alternate TMDB (textless + clearlogo), Custom URL |
+| Catalogs | Rename either row and set their order (clients read this at install: reinstall if a change doesn't show) |
+
+Alternate TMDB art rotates: each title steps through up to 4 visually distinct textless images, one per day, with change-over times staggered per title so a row changes a card or two at a time. Near-duplicate uploads are screened out, so a title with only one good image stays put. Tune with `artRotationHours` (0 = off) and `artRotationPool` in the Edge Config item. Each change-over re-renders that card once, roughly 0.3 to 0.5s of CPU.
 
 Custom URL placeholders: `{imdbId}` / `{id}`, `{tmdb_id}`, `{type}` (movie/tv), `{tmdb_key}`, `{mdblist_key}`, `{backdrop_path}`. Keys are filled server-side only.
 
-Saving clears the cached catalogs. Clients still hold their own copy: force-stop Nuvio to see changes immediately.
+Saving clears the cached catalogs and manifests. Clients still hold their own copy: force-stop Nuvio to see changes immediately.
 
 One-time setup:
 
@@ -58,7 +61,7 @@ api/config.js    settings page
 api/meta.js      fallback meta (lib/meta.js); list this addon after your main meta addon
 lib/tmdb.js      trending, eligibility, status labels, art paths
 lib/badge.js     rank badge, pill, vignette, clearlogo compositing
-lib/art.js       picks the landscape alternate least like the main backdrop
+lib/art.js       alternate-art pools (near-duplicates screened out) and daily rotation
 lib/config.js    defaults + Edge Config
 ```
 

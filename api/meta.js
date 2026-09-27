@@ -1,5 +1,5 @@
 // api/meta.js
-// /meta/:type/:id.json (and /stremio/meta/...): fallback TMDB meta, see lib/meta.js.
+// /meta/:type/:id.json (and /landscape/meta/...): fallback TMDB meta, see lib/meta.js.
 
 const { fetchMeta } = require('../lib/meta');
 const { withCors } = require('../lib/cors');

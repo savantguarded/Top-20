@@ -6,10 +6,6 @@
     { "source": "/meta/:type/:id.json", "destination": "/api/meta?type=:type&id=:id" },
     { "source": "/backstage-:key", "destination": "/api/config?key=:key" },
 
-    { "source": "/stremio/manifest.json", "destination": "/api/manifest" },
-    { "source": "/stremio/catalog/:type/:id.json", "destination": "/api/catalog?type=:type&id=:id&corner=tr" },
-    { "source": "/stremio/meta/:type/:id.json", "destination": "/api/meta?type=:type&id=:id" },
-
     { "source": "/landscape/manifest.json", "destination": "/api/manifest?layout=landscape" },
     { "source": "/landscape/catalog/:type/:id.json", "destination": "/api/catalog?type=:type&id=:id&layout=landscape" },
     { "source": "/landscape/meta/:type/:id.json", "destination": "/api/meta?type=:type&id=:id" }

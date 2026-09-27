@@ -2,11 +2,12 @@
 // /backstage-<key> (see vercel.json): the settings page. Only served when <key> matches the
 // BACKSTAGE_KEY env var (kept out of this public repo); anything else, /api/config included, 404s.
 // Reads/writes the "topTwentyConfig" Edge Config item that lib/config.js reads, touching only
-// the keys in FIELDS (other tunables stay editable in Vercel's Edge Config "Items" tab). Saves also drop the cached catalogs so changes show on
-// the next catalog request.
+// the keys in FIELDS plus `catalogs` (names and order of the installed rows); other tunables
+// stay editable in Vercel's Edge Config "Items" tab. Saves also drop the cached catalogs and
+// manifests so changes show on the next request.
 // Needs VERCEL_API_TOKEN (and VERCEL_TEAM_ID for team projects).
 
-const { DEFAULTS, ART_MODES, resolveConfig, primeCache, getConfig, getRawOverrides } = require('../lib/config');
+const { DEFAULTS, ART_MODES, CATALOGS, CATALOG_NAME_MAX, normalizeCatalogs, resolveConfig, primeCache, getConfig, getRawOverrides } = require('../lib/config');
 const { withCors } = require('../lib/cors');
 
 const LABELS = { tmdb: 'Default TMDB', alternate: 'Alternate TMDB', betterposters: 'BetterPosters', custom: 'Custom URL' };
@@ -77,6 +78,10 @@ async function parseFormBody(req) {
  * rule never overrides a choice made here.
  */
 function applyForm(existing, params) {
+  if (params.reset === 'catalogs') {
+    delete existing.catalogs;
+    return 'Catalogs reset to default.';
+  }
   const one = FIELDS.find((f) => f.key === params.reset);
   if (one) {
     if (one.options) existing[one.key] = DEFAULTS[one.key];
@@ -85,8 +90,13 @@ function applyForm(existing, params) {
   }
   if (params.action === 'reset') {
     for (const f of FIELDS) delete existing[f.key];
+    delete existing.catalogs;
     return 'All fields reset to default.';
   }
+  const order = String(params.catalogOrder || '').split(',');
+  const catalogs = normalizeCatalogs(order.map((id) => ({ id, name: params[`catalogName_${id}`] })));
+  if (isDefaultCatalogs(catalogs)) delete existing.catalogs;
+  else existing.catalogs = catalogs;
   for (const f of FIELDS) {
     if (f.showIf && params[f.showIf[0]] !== f.showIf[1]) continue; // hidden field keeps its saved value
     const raw = (params[f.key] || '').trim();
@@ -96,6 +106,34 @@ function applyForm(existing, params) {
     else existing[f.key] = raw;
   }
   return 'Saved.';
+}
+
+const isDefaultCatalogs = (list) => list.length === CATALOGS.length
+  && list.every((c, i) => c.id === CATALOGS[i].id && c.name === CATALOGS[i].name);
+
+/** Rename + reorder rows. The hidden catalogOrder input carries the order the arrows set. */
+function renderCatalogs(cfg) {
+  const items = cfg.catalogs.map((c) => {
+    const def = CATALOGS.find((d) => d.id === c.id);
+    const kind = def.type === 'movie' ? 'Movies' : 'Shows';
+    return `
+        <li class="row cat" data-id="${c.id}">
+          <input type="text" name="catalogName_${c.id}" value="${escapeHtml(c.name)}" placeholder="${escapeHtml(def.name)}" maxlength="${CATALOG_NAME_MAX}" spellcheck="false" autocomplete="off" aria-label="${kind} catalog name" />
+          <button class="secondary move" type="button" data-dir="-1" aria-label="Move up">&#8593;</button>
+          <button class="secondary move" type="button" data-dir="1" aria-label="Move down">&#8595;</button>
+        </li>`;
+  }).join('');
+  return `
+      <div class="field">
+        <span class="field-label">Catalogs</span>
+        <span class="row">
+          <ol class="cats" id="cats">${items}
+          </ol>
+          <button class="secondary" type="submit" name="reset" value="catalogs"${isDefaultCatalogs(cfg.catalogs) ? ' disabled' : ''}>Reset</button>
+        </span>
+        <p class="hint">Rename, or use the arrows to set the row order. Clients read this at install: if a change doesn't show, reinstall the addon.</p>
+        <input type="hidden" name="catalogOrder" id="cat-order" value="${cfg.catalogs.map((c) => c.id).join(',')}" />
+      </div>`;
 }
 
 function renderPage({ cfg, message, error, path, base }) {
@@ -121,7 +159,7 @@ function renderPage({ cfg, message, error, path, base }) {
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Top Charts Today</title>
+<title>Daily Charts</title>
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
@@ -152,15 +190,18 @@ function renderPage({ cfg, message, error, path, base }) {
   .toggle { display: flex; background: #1a1b20; border: 1px solid #2c2d34; border-radius: 6px; padding: 3px; align-self: flex-start; }
   .toggle button { background: none; color: #8b8b96; padding: 8px 16px; }
   .toggle button[aria-pressed="true"] { background: #2c2d34; color: #e8e8ec; }
+  .cats { flex: 1; min-width: 0; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .cat .move { padding: 10px 12px; }
 </style>
 </head>
 <body>
   <div class="wrap">
-    <h1>Top Charts Today</h1>
+    <h1>Daily Charts</h1>
     ${message ? `<div class="banner ok">${escapeHtml(message)}</div>` : ''}
     ${error ? `<div class="banner err">${escapeHtml(error)}</div>` : ''}
     <form method="POST" action="${path}">
       ${rows}
+      ${renderCatalogs(cfg)}
       <div class="actions">
         <button class="primary" type="submit" name="action" value="save">Save</button>
         <button class="secondary" type="submit" name="action" value="reset">Reset all</button>
@@ -168,11 +209,10 @@ function renderPage({ cfg, message, error, path, base }) {
     </form>
     <section class="install">
       <h2>Install link</h2>
-      <p class="hint">Portrait and Landscape are for Nuvio (leave its Landscape posters toggle off). Stremio puts the rank badge top-right, clear of its watched checkmark. Not saved: each link is its own install, so switching here never changes an existing one.</p>
+      <p class="hint">For Nuvio. For Landscape, leave Nuvio's Landscape posters toggle off. Not saved: each link is its own install, so switching here never changes an existing one.</p>
       <div class="toggle" role="group" aria-label="Install type">
         <button type="button" data-url="${base}/manifest.json" aria-pressed="true">Portrait</button>
         <button type="button" data-url="${base}/landscape/manifest.json" aria-pressed="false">Landscape</button>
-        <button type="button" data-url="${base}/stremio/manifest.json" aria-pressed="false">Stremio</button>
       </div>
       <span class="row">
         <input type="text" id="install-url" value="${base}/manifest.json" readonly spellcheck="false" />
@@ -185,6 +225,25 @@ function renderPage({ cfg, message, error, path, base }) {
       el.hidden = document.getElementById('f-' + el.dataset.if).value !== el.dataset.is;
     });
     document.querySelectorAll('select').forEach((s) => s.addEventListener('change', sync));
+    const cats = document.getElementById('cats');
+    const syncCats = () => {
+      const rows = [...cats.children];
+      document.getElementById('cat-order').value = rows.map((r) => r.dataset.id).join(',');
+      rows.forEach((r, i) => {
+        r.querySelector('[data-dir="-1"]').disabled = i === 0;
+        r.querySelector('[data-dir="1"]').disabled = i === rows.length - 1;
+      });
+    };
+    cats.addEventListener('click', (e) => {
+      const b = e.target.closest('.move');
+      if (!b) return;
+      const row = b.closest('li');
+      if (b.dataset.dir === '-1' && row.previousElementSibling) cats.insertBefore(row, row.previousElementSibling);
+      if (b.dataset.dir === '1' && row.nextElementSibling) cats.insertBefore(row.nextElementSibling, row);
+      syncCats();
+      b.focus();
+    });
+    syncCats();
     const url = document.getElementById('install-url');
     const copy = document.getElementById('copy');
     document.querySelectorAll('.toggle button').forEach((b) => b.addEventListener('click', () => {
