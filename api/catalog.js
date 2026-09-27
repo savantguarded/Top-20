@@ -48,6 +48,9 @@ module.exports = withCors(async (req, res) => {
   const { type, id } = req.query;
   // 'tr' for the /stremio/ install (clears Stremio's own top-left watched checkmark).
   const corner = req.query.corner === 'tr' ? 'tr' : 'tl';
+  // 'landscape' for the /landscape/ install: Nuvio then draws wide cards from landscapePoster,
+  // with its own Landscape posters toggle left off. Every other install keeps 'poster'.
+  const posterShape = req.query.layout === 'landscape' ? 'landscape' : 'poster';
 
   let items;
   try {
@@ -79,7 +82,7 @@ module.exports = withCors(async (req, res) => {
       name: item.name,
       releaseInfo: item.releaseInfo || undefined,
       poster: cardUrl(base, type, item, rank, portraitArt(item, cfg.posterArt), { v: portraitTag, corner }),
-      posterShape: 'poster',
+      posterShape,
       background: item.main_backdrop_path ? `https://image.tmdb.org/t/p/original${item.main_backdrop_path}` : landscapePoster,
       landscapePoster,
       logo: item.logo_path ? `https://image.tmdb.org/t/p/w500${item.logo_path}` : undefined,

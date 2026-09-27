@@ -27,6 +27,7 @@ Dates follow the Africa/Lagos calendar (`TIMEZONE` in `lib/tmdb.js`). Episodes a
    - `TMDB_API_KEY` (required)
    - `MDBLIST_API_KEY` (optional, fills `{mdblist_key}` in provider URLs)
 3. Deploy. Install `https://<project>.vercel.app/manifest.json` in Nuvio, or `/stremio/manifest.json` in Stremio (rank badge top-right, clear of Stremio's watched checkmark).
+   For wide cards in Nuvio with its Landscape posters toggle left off, install `/landscape/manifest.json` instead. It has its own id, so it sits alongside a portrait install and changes nothing for other installs or clients. The settings page builds either link (Portrait / Landscape toggle, not saved).
 
 ## Settings page: `/backstage-<key>`
 

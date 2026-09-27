@@ -98,7 +98,7 @@ function applyForm(existing, params) {
   return 'Saved.';
 }
 
-function renderPage({ cfg, message, error, path }) {
+function renderPage({ cfg, message, error, path, base }) {
   const rows = FIELDS.map((f) => {
     const value = cfg[f.key];
     const def = DEFAULTS[f.key];
@@ -146,6 +146,12 @@ function renderPage({ cfg, message, error, path }) {
   .primary { background: #5b7cff; color: #fff; }
   .secondary { background: #2c2d34; color: #e8e8ec; }
   .row .secondary { padding: 10px 14px; }
+  .install { margin-top: 36px; padding-top: 24px; border-top: 1px solid #2c2d34; display: flex; flex-direction: column; gap: 10px; }
+  .install h2 { font-size: 1rem; margin: 0; }
+  .hint { font-size: 0.82rem; color: #8b8b96; margin: 0; }
+  .toggle { display: flex; background: #1a1b20; border: 1px solid #2c2d34; border-radius: 6px; padding: 3px; align-self: flex-start; }
+  .toggle button { background: none; color: #8b8b96; padding: 8px 16px; }
+  .toggle button[aria-pressed="true"] { background: #2c2d34; color: #e8e8ec; }
 </style>
 </head>
 <body>
@@ -160,12 +166,35 @@ function renderPage({ cfg, message, error, path }) {
         <button class="secondary" type="submit" name="action" value="reset">Reset all</button>
       </div>
     </form>
+    <section class="install">
+      <h2>Install link</h2>
+      <p class="hint">Picks the card shape in Nuvio (leave its Landscape posters toggle off). Not saved: each link is its own install, so switching here never changes an existing one.</p>
+      <div class="toggle" role="group" aria-label="Poster shape">
+        <button type="button" data-url="${base}/manifest.json" aria-pressed="true">Portrait</button>
+        <button type="button" data-url="${base}/landscape/manifest.json" aria-pressed="false">Landscape</button>
+      </div>
+      <span class="row">
+        <input type="text" id="install-url" value="${base}/manifest.json" readonly spellcheck="false" />
+        <button class="secondary" type="button" id="copy">Copy</button>
+      </span>
+    </section>
   </div>
   <script>
     const sync = () => document.querySelectorAll('[data-if]').forEach((el) => {
       el.hidden = document.getElementById('f-' + el.dataset.if).value !== el.dataset.is;
     });
     document.querySelectorAll('select').forEach((s) => s.addEventListener('change', sync));
+    const url = document.getElementById('install-url');
+    const copy = document.getElementById('copy');
+    document.querySelectorAll('.toggle button').forEach((b) => b.addEventListener('click', () => {
+      document.querySelectorAll('.toggle button').forEach((o) => o.setAttribute('aria-pressed', String(o === b)));
+      url.value = b.dataset.url;
+      copy.textContent = 'Copy';
+    }));
+    copy.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(url.value); } catch { url.select(); document.execCommand('copy'); }
+      copy.textContent = 'Copied';
+    });
     // After a save, turn this entry into a plain GET so a refresh reloads the page instead of
     // re-sending the form (which re-showed the banner), and fade the banner out.
     history.replaceState(null, '', location.pathname);
@@ -200,5 +229,6 @@ module.exports = withCors(async (req, res) => {
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
-  res.status(200).send(renderPage({ cfg: cfg || (await getConfig()), message, error, path: `/backstage-${key}` }));
+  const base = `https://${req.headers['x-forwarded-host'] || req.headers.host}`;
+  res.status(200).send(renderPage({ cfg: cfg || (await getConfig()), message, error, path: `/backstage-${key}`, base: escapeHtml(base) }));
 });

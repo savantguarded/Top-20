@@ -1,16 +1,19 @@
 // api/manifest.js
 // /manifest.json (and /stremio/manifest.json): two catalogs plus a fallback meta resource.
+// /landscape/manifest.json: same catalogs with wide cards in Nuvio. It gets its own id and name so
+// it installs alongside the portrait one; every other field is identical.
 
 const { withCors } = require('../lib/cors');
 
 module.exports = withCors((req, res) => {
   const host = req.headers['x-forwarded-host'] || req.headers.host;
   const base = `https://${host}`;
+  const landscape = req.query.layout === 'landscape';
 
   const manifest = {
-    id: 'com.charles.topchartstoday',
+    id: landscape ? 'com.charles.topchartstoday.landscape' : 'com.charles.topchartstoday',
     version: '1.2.0',
-    name: 'Top Charts Today',
+    name: landscape ? 'Top Charts Today (Landscape)' : 'Top Charts Today',
     description:
       'Top 20 movies (digital/home release only) and top 20 shows, ranked daily via TMDB, US region. ' +
       'Created by Charles. ' +
