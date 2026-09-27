@@ -3,7 +3,7 @@
 Two catalogs, ranked daily from TMDB trending:
 
 - **Top Movies Today**: out digitally or on disc in the US (or digital release within 3 days).
-- **Top Shows Today**: already airing, or premiering within 7 days. Anime (Japanese animation) excluded.
+- **Top Shows Today**: already airing, or premiering within 7 days. Japanese, Chinese and Korean animation (anime, donghua) excluded.
 
 Every card gets a glossy rank number and a status pill ("Just Added", "Airing Today", "Streaming Oct 3", "Season Finale Oct 2", ...). Landscape cards also show the top US subscription service carrying the title (bottom right), when there is one. Each catalog item carries:
 
