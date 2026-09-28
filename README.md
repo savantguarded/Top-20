@@ -5,7 +5,7 @@ Two catalogs, ranked daily from TMDB trending:
 - **Top Movies Today**: out digitally or on disc in the US (or digital release within 3 days).
 - **Top Shows Today**: already airing, or premiering within 7 days. Japanese, Chinese and Korean animation (anime, donghua) excluded.
 
-Every card gets a glossy rank number and a status pill ("Just Added", "Airing Today", "Streaming Oct 3", "Season Finale Oct 2", ...). Landscape cards also show the top US subscription service carrying the title (bottom right), when there is one. Each catalog item carries:
+Every card gets a glossy rank number and a status pill (see **Status labels** below). Landscape cards also show the top US subscription service carrying the title (bottom right), when there is one. Each catalog item carries:
 
 | Field | What it is |
 | --- | --- |
@@ -19,6 +19,37 @@ No database or cron: catalogs are edge-cached for an hour and rebuild themselves
 Streaming availability data is provided by [JustWatch](https://www.justwatch.com), via TMDB.
 
 Dates follow the Africa/Lagos calendar (`TIMEZONE` in `lib/tmdb.js`). Episodes airing within a day of today are re-dated from their exact [TVmaze](https://www.tvmaze.com) airstamp, so a Sunday 9pm ET episode reads "Airing Today" on Monday in Lagos.
+
+## Status labels
+
+First match wins. Windows live in `DEFAULTS` in `lib/config.js`.
+
+**Movies**
+
+| Label | When |
+| --- | --- |
+| Now on Blu-ray | Physical release in the last 7 days |
+| Just Added | Digital release, days 0 to 3 |
+| Now Streaming | Digital release, days 4 to 7 |
+| Streaming *date* | Digital release within the next 3 days |
+
+**Shows**
+
+| Label | When |
+| --- | --- |
+| Premieres *date* | New series, up to 7 days out |
+| New Season *date* | Season 2+, up to 7 days out |
+| Full Season | Binge drop (finale out on premiere day), for 7 days |
+| Series / Season Premiere | Premiere day only |
+| Airing Today | An episode airs today (finales show as Season / Series Finale) |
+| New Series / New Season | Days 1 to 7 after a weekly premiere |
+| Season Finale *date* | Finale airs within 7 days |
+| Next Ep *date* | Next episode within 7 days |
+| Returns *date* | Same, after a gap of over 14 days |
+| Season / Series Finale | Finale aired in the last 7 days |
+| New Episode | Episode aired 1 to 2 days ago |
+
+*date* reads "Tomorrow", then the weekday up to 5 days out ("Fri"), then "Oct 4".
 
 ## Deploy
 
