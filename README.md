@@ -44,10 +44,10 @@ First match wins. Windows live in `DEFAULTS` in `lib/config.js`.
 | Airing Today | An episode airs today (finales show as Season / Series Finale) |
 | New Series / New Season | Days 1 to 7 after a weekly premiere |
 | Season Finale *date* | Finale airs within 7 days |
-| Next Ep *date* | Next episode within 7 days |
-| Returns *date* | Same, after a gap of over 14 days |
 | Season / Series Finale | Finale aired in the last 7 days |
 | New Episode | Episode aired 1 to 2 days ago |
+| Next Ep *date* | Next episode within 7 days |
+| Returns *date* | Same, after a gap of over 14 days |
 
 *date* reads "Tomorrow", then the weekday up to 5 days out ("Fri"), then "Oct 4".
 
