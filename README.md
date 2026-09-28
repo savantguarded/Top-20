@@ -51,6 +51,8 @@ First match wins. Windows live in `DEFAULTS` in `lib/config.js`.
 
 *date* reads "Tomorrow", then the weekday up to 5 days out ("Fri"), then "Oct 4".
 
+After changing label logic, run `npm test` (`scripts/labels.test.js`, no network needed).
+
 ## Deploy
 
 1. Import this repo into Vercel.

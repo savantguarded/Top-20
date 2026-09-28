@@ -7,6 +7,9 @@
   "engines": {
     "node": ">=18"
   },
+  "scripts": {
+    "test": "node scripts/labels.test.js"
+  },
   "dependencies": {
     "@resvg/resvg-js": "^2.6.2",
     "@vercel/edge-config": "^1.5.1",
