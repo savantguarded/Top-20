@@ -12,8 +12,8 @@ const file = path.join(__dirname, '..', 'lib', 'tmdb.js');
 const mod = new Module(file);
 mod.filename = file;
 mod.paths = Module._nodeModulePaths(path.dirname(file));
-mod._compile(`${fs.readFileSync(file, 'utf8')}\nmodule.exports.__t = { computeShowContext, computeMovieContext, formatShortDate, comingDigitalDate, comingMovieLabel, classifyComingShow, comingShowLabel, mixComingSoon };`, file);
-const { computeShowContext, computeMovieContext, formatShortDate, comingDigitalDate, comingMovieLabel, classifyComingShow, comingShowLabel, mixComingSoon } = mod.exports.__t;
+mod._compile(`${fs.readFileSync(file, 'utf8')}\nmodule.exports.__t = { computeShowContext, computeMovieContext, formatShortDate, comingDigitalDate, comingMovieLabel, classifyComingShow, comingShowLabel, mixComingSoon, isWantedComingShow };`, file);
+const { computeShowContext, computeMovieContext, formatShortDate, comingDigitalDate, comingMovieLabel, classifyComingShow, comingShowLabel, mixComingSoon, isWantedComingShow } = mod.exports.__t;
 const { DEFAULTS } = require('../lib/config');
 
 // d days ago (negative = in the future), YYYY-MM-DD on the Lagos calendar.
@@ -89,6 +89,11 @@ check('coming: returns', cs(running({ last_episode_to_air: ep(2, 4, 40), next_ep
 check('coming: returns today', cs(running({ last_episode_to_air: ep(2, 4, 40), next_episode_to_air: ep(2, 5, 0) })), 'Returns Today');
 check('coming: weekly episode excluded', cs(running({ last_episode_to_air: ep(2, 4, 7), next_episode_to_air: ep(2, 5, -1) })), null);
 check('coming: season premiere day', cs(running({ seasons: s2(0), last_episode_to_air: ep(2, 1, 0), next_episode_to_air: ep(2, 2, -7) })), 'Season Premiere');
+
+check('wanted: english drama', isWantedComingShow({ original_language: 'en', genre_ids: [18] }), true);
+check('wanted: talk show', isWantedComingShow({ original_language: 'en', genre_ids: [10767] }), false);
+check('wanted: reality', isWantedComingShow({ original_language: 'en', genres: [{ id: 10764 }] }), false);
+check('wanted: korean variety', isWantedComingShow({ original_language: 'ko', genre_ids: [35] }), false);
 
 const it = (type, pop, d) => ({ type, popularity: pop, date: ago(-d), imdbId: `${type}${pop}` });
 const mv = Array.from({ length: 20 }, (_, i) => it('movie', 1000 - i, i));
