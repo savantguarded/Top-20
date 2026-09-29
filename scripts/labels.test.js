@@ -94,6 +94,9 @@ check('wanted: english drama', isWantedComingShow({ original_language: 'en', gen
 check('wanted: talk show', isWantedComingShow({ original_language: 'en', genre_ids: [10767] }), false);
 check('wanted: reality', isWantedComingShow({ original_language: 'en', genres: [{ id: 10764 }] }), false);
 check('wanted: kids', isWantedComingShow({ original_language: 'en', genre_ids: [10762, 16] }), false);
+check('wanted: animated family', isWantedComingShow({ original_language: 'en', genre_ids: [16, 10751, 35] }), false);
+check('wanted: kids channel', isWantedComingShow({ original_language: 'en', genres: [{ id: 16 }], networks: [{ name: 'Disney XD' }] }), false);
+check('wanted: adult animation', isWantedComingShow({ original_language: 'en', genre_ids: [16, 35], networks: [{ name: 'Adult Swim' }] }), true);
 check('wanted: korean variety', isWantedComingShow({ original_language: 'ko', genre_ids: [35] }), false);
 
 const it = (type, pop, d) => ({ type, popularity: pop, date: ago(-d), imdbId: `${type}${pop}` });
