@@ -93,6 +93,7 @@ check('coming: season premiere day', cs(running({ seasons: s2(0), last_episode_t
 check('wanted: english drama', isWantedComingShow({ original_language: 'en', genre_ids: [18] }), true);
 check('wanted: talk show', isWantedComingShow({ original_language: 'en', genre_ids: [10767] }), false);
 check('wanted: reality', isWantedComingShow({ original_language: 'en', genres: [{ id: 10764 }] }), false);
+check('wanted: kids', isWantedComingShow({ original_language: 'en', genre_ids: [10762, 16] }), false);
 check('wanted: korean variety', isWantedComingShow({ original_language: 'ko', genre_ids: [35] }), false);
 
 const it = (type, pop, d) => ({ type, popularity: pop, date: ago(-d), imdbId: `${type}${pop}` });
