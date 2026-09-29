@@ -61,11 +61,7 @@ module.exports = withCors(async (req, res) => {
   try {
     if (type === 'movie' && id === 'top-movies-today') items = await getTopMovies();
     else if (type === 'series' && id === 'top-shows-today') items = await getTopShows();
-    else if (type === 'movie' && id === 'coming-soon' && req.query.diag === '1') {
-      res.setHeader('Cache-Control', 'no-store'); // TEMP: compare selection modes
-      res.status(200).json(await getComingSoon({ diag: true }));
-      return;
-    } else if (type === 'movie' && id === 'coming-soon') items = await getComingSoon();
+    else if (type === 'movie' && id === 'coming-soon') items = await getComingSoon();
     else {
       res.status(404).json({ err: 'unknown catalog' });
       return;

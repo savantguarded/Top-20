@@ -4,7 +4,7 @@ Two catalogs ranked daily from TMDB trending, plus an unranked Coming Soon row:
 
 - **Top Movies Today**: out digitally or on disc in the US (or digital release within 3 days).
 - **Top Shows Today**: already airing, or premiering within 7 days. Japanese, Chinese and Korean animation (anime, donghua) excluded.
-- **Coming Soon**: movies and shows mixed, 20 items over the next 30 days, soonest first. Movies: first US digital release. Shows: English-language premieres, new seasons and returns after a 14+ day break (not weekly episodes; no talk, reality, news or soaps). Candidates come from TMDB discover, most popular first, above a popularity floor; at least 6 of each type when that many exist. Declared as a `movie` catalog, but each item carries its own type (Nuvio reads it per item). Tunables: `comingSoon` in `DEFAULTS`.
+- **Coming Soon**: movies and shows mixed, the 20 soonest over the next 30 days. Movies: first US digital release. Shows: English-language premieres, new seasons and returns after a 14+ day break (not weekly episodes; no kids, talk, reality, news or soaps). Only real releases count, not popularity: shows on a major streamer or US/UK/Canadian network, movies with a US theatrical run (popularity 3+), a streamer as producer, or already on a US service (`MAJOR_OUTLETS` in `lib/tmdb.js`). Declared as a `movie` catalog, but each item carries its own type (Nuvio reads it per item). Tunables: `comingSoon` in `DEFAULTS`; `mode: 'popular'` switches back to most-popular-20 with a floor.
 
 Ranked cards get a glossy rank number; every card gets a status pill (see **Status labels** below). Landscape cards also show the top US subscription service carrying the title (bottom right), when there is one. Each catalog item carries:
 
