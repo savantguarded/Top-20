@@ -59,7 +59,9 @@ module.exports = withCors(async (req, res) => {
   }
   const shape = q.shape === 'landscape' ? 'landscape' : 'portrait';
   const corner = q.corner === 'tr' ? 'tr' : 'tl';
-  const rank = Math.max(1, parseInt(q.rank, 10) || 1);
+  // 0 = unranked (Coming Soon): no numeral, no vignette.
+  const parsedRank = parseInt(q.rank, 10);
+  const rank = Number.isFinite(parsedRank) ? Math.max(0, parsedRank) : 1;
   // Legacy URLs (catalogs still cached on a client from before this scheme): bp/art/fallback.
   const img = q.img || q.bp || (q.fallback || '').replace(/^https:\/\/image\.tmdb\.org\/t\/p\/\w+/, '');
   const src = q.src || q.art || (shape === 'portrait' ? 'custom' : 'tmdb');

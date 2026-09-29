@@ -12,7 +12,7 @@
 // Edge-cached for an hour; tagged `catalog` so /backstage can drop it on save.
 
 const crypto = require('crypto');
-const { getTopMovies, getTopShows } = require('../lib/tmdb');
+const { getTopMovies, getTopShows, getComingSoon } = require('../lib/tmdb');
 const { withCors } = require('../lib/cors');
 const { getConfig, BETTER_POSTERS_URL } = require('../lib/config');
 const { pickRotating } = require('../lib/art');
@@ -61,6 +61,7 @@ module.exports = withCors(async (req, res) => {
   try {
     if (type === 'movie' && id === 'top-movies-today') items = await getTopMovies();
     else if (type === 'series' && id === 'top-shows-today') items = await getTopShows();
+    else if (type === 'movie' && id === 'coming-soon') items = await getComingSoon();
     else {
       res.status(404).json({ err: 'unknown catalog' });
       return;
@@ -76,17 +77,20 @@ module.exports = withCors(async (req, res) => {
   const portraitTag = tag('portrait', cfg.posterArt, posterTemplate);
   const landscapeTag = tag('landscape-960', cfg.landscapeArt, cfg.landscapeArt === 'custom' ? cfg.backdropUrlTemplate : '');
 
+  // Coming Soon is unranked (rank 0 draws no numeral) and mixed: each item keeps its own type.
+  const ranked = id !== 'coming-soon';
   const metas = items.map((item, idx) => {
-    const rank = idx + 1;
+    const rank = ranked ? idx + 1 : 0;
+    const itemType = item.type || type;
     const landscapeExtra = { shape: 'landscape', v: landscapeTag };
     if (item.provider_logo_path) landscapeExtra.pv = item.provider_logo_path;
-    const landscapePoster = cardUrl(base, type, item, rank, landscapeArt(item, cfg.landscapeArt, cfg), landscapeExtra);
+    const landscapePoster = cardUrl(base, itemType, item, rank, landscapeArt(item, cfg.landscapeArt, cfg), landscapeExtra);
     return {
       id: item.imdbId,
-      type,
+      type: itemType,
       name: item.name,
       releaseInfo: item.releaseInfo || undefined,
-      poster: (landscapeLayout && landscapePoster) || cardUrl(base, type, item, rank, portraitArt(item, cfg.posterArt, cfg), { v: portraitTag }),
+      poster: (landscapeLayout && landscapePoster) || cardUrl(base, itemType, item, rank, portraitArt(item, cfg.posterArt, cfg), { v: portraitTag }),
       posterShape,
       background: item.main_backdrop_path ? `https://image.tmdb.org/t/p/original${item.main_backdrop_path}` : landscapePoster,
       landscapePoster,

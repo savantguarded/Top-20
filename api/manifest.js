@@ -1,5 +1,5 @@
 // api/manifest.js
-// /manifest.json: two catalogs plus a fallback meta resource.
+// /manifest.json: three catalogs (two ranked, one mixed Coming Soon) plus a fallback meta resource.
 // /landscape/manifest.json: same catalogs with wide cards in Nuvio. It keeps its own id so it
 // installs alongside the portrait one; the name and everything else are identical.
 // Catalog names and order come from /backstage (cfg.catalogs). Tagged `catalog` so a save there
@@ -16,10 +16,11 @@ module.exports = withCors(async (req, res) => {
 
   const manifest = {
     id: landscape ? 'com.charles.topchartstoday.landscape' : 'com.charles.topchartstoday',
-    version: '1.3.0',
+    version: '1.4.0',
     name: 'Daily Charts',
     description:
-      'Top 20 movies (digital/home release only) and top 20 shows, ranked daily via TMDB, US region. ' +
+      'Top 20 movies (digital/home release only) and top 20 shows, ranked daily via TMDB, US region, ' +
+      'plus the next 30 days of popular releases. ' +
       'Created by Charles. ' +
       'This product uses the TMDB API but is not endorsed or certified by TMDB.',
     logo: `${base}/icon.png`,

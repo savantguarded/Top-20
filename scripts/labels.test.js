@@ -12,8 +12,8 @@ const file = path.join(__dirname, '..', 'lib', 'tmdb.js');
 const mod = new Module(file);
 mod.filename = file;
 mod.paths = Module._nodeModulePaths(path.dirname(file));
-mod._compile(`${fs.readFileSync(file, 'utf8')}\nmodule.exports.__t = { computeShowContext, computeMovieContext, formatShortDate };`, file);
-const { computeShowContext, computeMovieContext, formatShortDate } = mod.exports.__t;
+mod._compile(`${fs.readFileSync(file, 'utf8')}\nmodule.exports.__t = { computeShowContext, computeMovieContext, formatShortDate, comingDigitalDate, comingMovieLabel, classifyComingShow, comingShowLabel, mixComingSoon };`, file);
+const { computeShowContext, computeMovieContext, formatShortDate, comingDigitalDate, comingMovieLabel, classifyComingShow, comingShowLabel, mixComingSoon } = mod.exports.__t;
 const { DEFAULTS } = require('../lib/config');
 
 // d days ago (negative = in the future), YYYY-MM-DD on the Lagos calendar.
@@ -70,6 +70,35 @@ check('now streaming', computeMovieContext(ago(6), null, null, movie), 'Now Stre
 check('streaming aged out', computeMovieContext(ago(9), null, null, movie), null);
 check('blu-ray', computeMovieContext(ago(30), ago(3), null, movie), 'Now on Blu-ray');
 check('streaming soon', computeMovieContext(null, null, ago(-2), movie), `Streaming ${weekday(-2)}`);
+
+// Coming Soon
+const rd = (...dates) => ({ results: [{ iso_3166_1: 'US', release_dates: dates.map((d) => ({ type: 4, release_date: `${ago(d)}T00:00:00.000Z` })) }] });
+check('coming: digital in window', comingDigitalDate(rd(-10), 'US', 30), ago(-10));
+check('coming: digital today', comingDigitalDate(rd(0), 'US', 30), ago(0));
+check('coming: past the window', comingDigitalDate(rd(-31), 'US', 30), null);
+check('coming: already out digitally', comingDigitalDate(rd(20, -5), 'US', 30), null);
+check('coming: out today', comingMovieLabel(ago(0)), 'Out Today');
+check('coming: streaming tomorrow', comingMovieLabel(ago(-1)), 'Streaming Tomorrow');
+check('coming: streaming later', comingMovieLabel(ago(-12)), `Streaming ${monthDay(-12)}`);
+
+const cs = (details) => { const c = classifyComingShow(details, 30); return c && comingShowLabel(c, details, show); };
+check('coming: premiere', cs({ first_air_date: ago(-9), seasons: [{ season_number: 1, air_date: ago(-9), episode_count: 8 }] }), `Premieres ${monthDay(-9)}`);
+check('coming: premiere past window', cs({ first_air_date: ago(-40) }), null);
+check('coming: new season', cs(running({ seasons: s2(-3), last_episode_to_air: ep(1, 8, 200), next_episode_to_air: ep(2, 1, -3) })), `New Season ${weekday(-3)}`);
+check('coming: returns', cs(running({ last_episode_to_air: ep(2, 4, 40), next_episode_to_air: ep(2, 5, -6) })), `Returns ${monthDay(-6)}`);
+check('coming: returns today', cs(running({ last_episode_to_air: ep(2, 4, 40), next_episode_to_air: ep(2, 5, 0) })), 'Returns Today');
+check('coming: weekly episode excluded', cs(running({ last_episode_to_air: ep(2, 4, 7), next_episode_to_air: ep(2, 5, -1) })), null);
+check('coming: season premiere day', cs(running({ seasons: s2(0), last_episode_to_air: ep(2, 1, 0), next_episode_to_air: ep(2, 2, -7) })), 'Season Premiere');
+
+const it = (type, pop, d) => ({ type, popularity: pop, date: ago(-d), imdbId: `${type}${pop}` });
+const mv = Array.from({ length: 20 }, (_, i) => it('movie', 1000 - i, i));
+const tv = Array.from({ length: 20 }, (_, i) => it('series', 50 - i, 20 - i));
+const mixed = mixComingSoon(mv, tv, 20, 6);
+check('mix: size', mixed.length, 20);
+check('mix: min shows kept', mixed.filter((x) => x.type === 'series').length, 6);
+check('mix: soonest first', mixed.every((x, i) => i === 0 || mixed[i - 1].date <= x.date), true);
+check('mix: short on shows', mixComingSoon(mv, tv.slice(0, 2), 20, 6).filter((x) => x.type === 'series').length, 2);
+check('mix: few overall', mixComingSoon(mv.slice(0, 3), tv.slice(0, 4), 20, 6).length, 7);
 
 if (failed) {
   console.log(`${failed} label check(s) failed`);
