@@ -12,8 +12,8 @@ const file = path.join(__dirname, '..', 'lib', 'tmdb.js');
 const mod = new Module(file);
 mod.filename = file;
 mod.paths = Module._nodeModulePaths(path.dirname(file));
-mod._compile(`${fs.readFileSync(file, 'utf8')}\nmodule.exports.__t = { computeShowContext, computeMovieContext, formatShortDate, comingDigitalDate, comingMovieLabel, classifyComingShow, comingShowLabel, mixComingSoon, isWantedComingShow };`, file);
-const { computeShowContext, computeMovieContext, formatShortDate, comingDigitalDate, comingMovieLabel, classifyComingShow, comingShowLabel, mixComingSoon, isWantedComingShow } = mod.exports.__t;
+mod._compile(`${fs.readFileSync(file, 'utf8')}\nmodule.exports.__t = { computeShowContext, computeMovieContext, formatShortDate, comingDigitalDate, comingMovieLabel, classifyComingShow, comingShowLabel, mixComingSoon, isWantedComingShow, alreadyOnSale };`, file);
+const { computeShowContext, computeMovieContext, formatShortDate, comingDigitalDate, comingMovieLabel, classifyComingShow, comingShowLabel, mixComingSoon, isWantedComingShow, alreadyOnSale } = mod.exports.__t;
 const { DEFAULTS } = require('../lib/config');
 
 // d days ago (negative = in the future), YYYY-MM-DD on the Lagos calendar.
@@ -98,6 +98,12 @@ check('wanted: animated family', isWantedComingShow({ original_language: 'en', g
 check('wanted: kids channel', isWantedComingShow({ original_language: 'en', genres: [{ id: 16 }], networks: [{ name: 'Disney XD' }] }), false);
 check('wanted: adult animation', isWantedComingShow({ original_language: 'en', genre_ids: [16, 35], networks: [{ name: 'Adult Swim' }] }), true);
 check('wanted: korean variety', isWantedComingShow({ original_language: 'ko', genre_ids: [35] }), false);
+
+const wp = (kinds) => ({ results: { US: Object.fromEntries(kinds.map((k) => [k, [{ provider_name: 'Apple TV' }]])) } });
+check('on sale: future date, already rentable', alreadyOnSale(ago(-3), wp(['rent', 'buy']), 'US'), true);
+check('on sale: future date, nothing listed', alreadyOnSale(ago(-3), wp([]), 'US'), false);
+check('on sale: future date, streaming only', alreadyOnSale(ago(-3), wp(['flatrate']), 'US'), false);
+check('on sale: release day', alreadyOnSale(ago(0), wp(['rent']), 'US'), false);
 
 const it = (type, pop, d) => ({ type, popularity: pop, date: ago(-d), imdbId: `${type}${pop}` });
 const mv = Array.from({ length: 20 }, (_, i) => it('movie', 1000 - i, i));
