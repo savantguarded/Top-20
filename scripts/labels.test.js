@@ -74,21 +74,21 @@ check('streaming soon', computeMovieContext(null, null, ago(-2), movie), `Stream
 // Coming Soon
 const rd = (...dates) => ({ results: [{ iso_3166_1: 'US', release_dates: dates.map((d) => ({ type: 4, release_date: `${ago(d)}T00:00:00.000Z` })) }] });
 check('coming: digital in window', comingDigitalDate(rd(-10), 'US', 30), ago(-10));
-check('coming: digital today', comingDigitalDate(rd(0), 'US', 30), ago(0));
+check('coming: digital today excluded', comingDigitalDate(rd(0), 'US', 30), null);
 check('coming: past the window', comingDigitalDate(rd(-31), 'US', 30), null);
 check('coming: already out digitally', comingDigitalDate(rd(20, -5), 'US', 30), null);
-check('coming: out today', comingMovieLabel(ago(0)), 'Out Today');
 check('coming: streaming tomorrow', comingMovieLabel(ago(-1)), 'Streaming Tomorrow');
 check('coming: streaming later', comingMovieLabel(ago(-12)), `Streaming ${monthDay(-12)}`);
 
-const cs = (details) => { const c = classifyComingShow(details, 30); return c && comingShowLabel(c, details, show); };
+const cs = (details) => { const c = classifyComingShow(details, 30); return c && comingShowLabel(c); };
 check('coming: premiere', cs({ first_air_date: ago(-9), seasons: [{ season_number: 1, air_date: ago(-9), episode_count: 8 }] }), `Premieres ${monthDay(-9)}`);
 check('coming: premiere past window', cs({ first_air_date: ago(-40) }), null);
 check('coming: new season', cs(running({ seasons: s2(-3), last_episode_to_air: ep(1, 8, 200), next_episode_to_air: ep(2, 1, -3) })), `New Season ${weekday(-3)}`);
 check('coming: returns', cs(running({ last_episode_to_air: ep(2, 4, 40), next_episode_to_air: ep(2, 5, -6) })), `Returns ${monthDay(-6)}`);
-check('coming: returns today', cs(running({ last_episode_to_air: ep(2, 4, 40), next_episode_to_air: ep(2, 5, 0) })), 'Returns Today');
+check('coming: return today excluded', cs(running({ last_episode_to_air: ep(2, 4, 40), next_episode_to_air: ep(2, 5, 0) })), null);
 check('coming: weekly episode excluded', cs(running({ last_episode_to_air: ep(2, 4, 7), next_episode_to_air: ep(2, 5, -1) })), null);
-check('coming: season premiere day', cs(running({ seasons: s2(0), last_episode_to_air: ep(2, 1, 0), next_episode_to_air: ep(2, 2, -7) })), 'Season Premiere');
+check('coming: season premiere today excluded', cs(running({ seasons: s2(0), last_episode_to_air: ep(2, 1, 0), next_episode_to_air: ep(2, 2, -7) })), null);
+check('coming: series premiere today excluded', cs({ first_air_date: ago(0), last_episode_to_air: ep(1, 1, 0), next_episode_to_air: ep(1, 2, -7) }), null);
 
 check('wanted: english drama', isWantedComingShow({ original_language: 'en', genre_ids: [18] }), true);
 check('wanted: talk show', isWantedComingShow({ original_language: 'en', genre_ids: [10767] }), false);

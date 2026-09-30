@@ -4,7 +4,7 @@ Two catalogs ranked daily from TMDB trending, plus an unranked Coming Soon row:
 
 - **Top Movies Today**: out digitally or on disc in the US (or digital release within 3 days).
 - **Top Shows Today**: already airing, or premiering within 7 days. Japanese, Chinese and Korean animation (anime, donghua) excluded.
-- **Coming Soon**: movies and shows mixed, the 20 soonest over the next 30 days. Movies: first US digital release. Shows: English-language premieres, new seasons and returns after a 14+ day break (not weekly episodes; no kids, talk, reality, news or soaps). Only real releases count, not popularity: shows on a major streamer or US/UK/Canadian network, movies with a US theatrical run (popularity 3+), a streamer as producer, or already on a US service (`MAJOR_OUTLETS` in `lib/tmdb.js`). Declared as a `movie` catalog, but each item carries its own type (Nuvio reads it per item). Tunables: `comingSoon` in `DEFAULTS`; `mode: 'popular'` switches back to most-popular-20 with a floor.
+- **Coming Soon**: movies and shows mixed, the 20 soonest from tomorrow to 30 days out (nothing out or airing today). Movies: first US digital release. Shows: English-language premieres, new seasons and returns after a 14+ day break (not weekly episodes; no kids, talk, reality, news or soaps). Only real releases count, not popularity: shows on a major streamer or US/UK/Canadian network, movies with a US theatrical run (popularity 3+), a streamer as producer, or already on a US service (`MAJOR_OUTLETS` in `lib/tmdb.js`). Declared as a `movie` catalog, but each item carries its own type (Nuvio reads it per item). Tunables: `comingSoon` in `DEFAULTS`; `mode: 'popular'` switches back to most-popular-20 with a floor.
 
 Ranked cards get a glossy rank number; every card gets a status pill (see **Status labels** below). Landscape cards also show the top US subscription service carrying the title (bottom right), when there is one. Each catalog item carries:
 
@@ -54,10 +54,8 @@ First match wins. Windows live in `DEFAULTS` in `lib/config.js`.
 
 | Label | When |
 | --- | --- |
-| Out Today | Movie's digital release day |
-| Streaming *date* | Movie's digital release, up to 30 days out |
-| Premieres / New Season / Returns *date* | Show, up to 30 days out |
-| Series / Season Premiere, Full Season, Returns Today | Show, on the day |
+| Streaming *date* | Movie's first US digital release, 1 to 30 days out |
+| Premieres / New Season / Returns *date* | Show, 1 to 30 days out |
 
 *date* reads "Tomorrow", then the weekday up to 5 days out ("Fri"), then "Oct 4".
 
