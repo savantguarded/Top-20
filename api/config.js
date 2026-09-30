@@ -7,10 +7,11 @@
 // manifests so changes show on the next request.
 // Needs VERCEL_API_TOKEN (and VERCEL_TEAM_ID for team projects).
 
-const { DEFAULTS, ART_MODES, CATALOGS, CATALOG_NAME_MAX, normalizeCatalogs, resolveConfig, primeCache, getConfig, getRawOverrides } = require('../lib/config');
+const { DEFAULTS, ART_MODES, CATALOGS, CATALOG_NAME_MAX, CATALOG_SHAPES, normalizeCatalogs, resolveConfig, primeCache, getConfig, getRawOverrides } = require('../lib/config');
 const { withCors } = require('../lib/cors');
 
 const LABELS = { tmdb: 'Default TMDB', alternate: 'Alternate TMDB', betterposters: 'BetterPosters', custom: 'Custom URL' };
+const SHAPE_LABELS = { install: 'Follow install', portrait: 'Portrait', landscape: 'Landscape' };
 const options = (modes) => modes.map((value) => ({ value, label: LABELS[value] }));
 
 // `showIf`: rendered and saved only while that select has that value.
@@ -94,7 +95,7 @@ function applyForm(existing, params) {
     return 'All fields reset to default.';
   }
   const order = String(params.catalogOrder || '').split(',');
-  const catalogs = normalizeCatalogs(order.map((id) => ({ id, name: params[`catalogName_${id}`] })));
+  const catalogs = normalizeCatalogs(order.map((id) => ({ id, name: params[`catalogName_${id}`], shape: params[`catalogShape_${id}`] })));
   if (isDefaultCatalogs(catalogs)) delete existing.catalogs;
   else existing.catalogs = catalogs;
   for (const f of FIELDS) {
@@ -109,9 +110,9 @@ function applyForm(existing, params) {
 }
 
 const isDefaultCatalogs = (list) => list.length === CATALOGS.length
-  && list.every((c, i) => c.id === CATALOGS[i].id && c.name === CATALOGS[i].name);
+  && list.every((c, i) => c.id === CATALOGS[i].id && c.name === CATALOGS[i].name && c.shape === 'install');
 
-/** Rename + reorder rows. The hidden catalogOrder input carries the order the arrows set. */
+/** Rename, set orientation, and reorder rows. The hidden catalogOrder input carries the order the arrows set. */
 function renderCatalogs(cfg) {
   const items = cfg.catalogs.map((c) => {
     const def = CATALOGS.find((d) => d.id === c.id);
@@ -119,6 +120,7 @@ function renderCatalogs(cfg) {
     return `
         <li class="row cat" data-id="${c.id}">
           <input type="text" name="catalogName_${c.id}" value="${escapeHtml(c.name)}" placeholder="${escapeHtml(def.name)}" maxlength="${CATALOG_NAME_MAX}" spellcheck="false" autocomplete="off" aria-label="${kind} catalog name" />
+          <select class="shape" name="catalogShape_${c.id}" aria-label="${escapeHtml(c.name)} orientation">${CATALOG_SHAPES.map((v) => `<option value="${v}"${v === c.shape ? ' selected' : ''}>${SHAPE_LABELS[v]}</option>`).join('')}</select>
           <button class="secondary move" type="button" data-dir="-1" aria-label="Move up">&#8593;</button>
           <button class="secondary move" type="button" data-dir="1" aria-label="Move down">&#8595;</button>
         </li>`;
@@ -131,7 +133,7 @@ function renderCatalogs(cfg) {
           </ol>
           <button class="secondary" type="submit" name="reset" value="catalogs"${isDefaultCatalogs(cfg.catalogs) ? ' disabled' : ''}>Reset</button>
         </span>
-        <p class="hint">Rename, or use the arrows to set the row order. Clients read this at install: if a change doesn't show, reinstall the addon.</p>
+        <p class="hint">Rename, set each row's card orientation, or use the arrows to set the row order. Follow install uses the install link's shape; Portrait or Landscape applies on every install. Names and order are read at install: if one doesn't show, reinstall. Orientation applies on the next refresh.</p>
         <input type="hidden" name="catalogOrder" id="cat-order" value="${cfg.catalogs.map((c) => c.id).join(',')}" />
       </div>`;
 }
@@ -192,6 +194,8 @@ function renderPage({ cfg, message, error, path, base }) {
   .toggle button[aria-pressed="true"] { background: #2c2d34; color: #e8e8ec; }
   .cats { flex: 1; min-width: 0; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
   .cat .move { padding: 10px 12px; }
+  .cat .shape { flex: 0 0 auto; width: 9.5em; }
+  @media (max-width: 480px) { .cat { flex-wrap: wrap; } .cat input { flex-basis: 100%; } .cat .shape { flex: 1; width: auto; } }
 </style>
 </head>
 <body>

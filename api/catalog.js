@@ -50,12 +50,10 @@ function cardUrl(base, type, item, rank, art, extra) {
 
 module.exports = withCors(async (req, res) => {
   const { type, id } = req.query;
-  // The /landscape/ install: wide cards in Nuvio with its Landscape posters toggle off. With the
-  // toggle off Nuvio always draws `poster` (only the toggle makes it read landscapePoster), so
-  // this install ships the landscape card as `poster` too, in a landscape-shaped slot. Toggle on,
-  // it reads landscapePoster: the same card. Every other install is unchanged.
-  const landscapeLayout = req.query.layout === 'landscape';
-  const posterShape = landscapeLayout ? 'landscape' : 'poster';
+  // Landscape rows (the /landscape/ install, or a row set to Landscape on /backstage): wide cards
+  // in Nuvio with its Landscape posters toggle off. With the toggle off Nuvio always draws
+  // `poster` (only the toggle makes it read landscapePoster), so landscape rows ship the landscape
+  // card as `poster` too, in a landscape-shaped slot. Toggle on, it reads landscapePoster.
 
   let items;
   try {
@@ -72,6 +70,10 @@ module.exports = withCors(async (req, res) => {
   }
 
   const cfg = await getConfig();
+  // Per-row Orientation on /backstage overrides the install link; 'install' keeps it.
+  const rowShape = (cfg.catalogs.find((c) => c.id === id) || {}).shape || 'install';
+  const landscapeLayout = rowShape === 'install' ? req.query.layout === 'landscape' : rowShape === 'landscape';
+  const posterShape = landscapeLayout ? 'landscape' : 'poster';
   const base = `https://${req.headers['x-forwarded-host'] || req.headers.host}`;
   const posterTemplate = { betterposters: BETTER_POSTERS_URL, custom: cfg.posterUrlTemplate }[cfg.posterArt] || '';
   const portraitTag = tag('portrait', cfg.posterArt, posterTemplate);

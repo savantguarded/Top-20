@@ -76,7 +76,7 @@ After changing label logic, run `npm test` (`scripts/labels.test.js`, no network
 | --- | --- |
 | Portrait art | Default TMDB, Alternate TMDB (textless + clearlogo), BetterPosters, Custom URL |
 | Landscape art | Default TMDB (logo in image), Alternate TMDB (textless + clearlogo), Custom URL |
-| Catalogs | Rename any row and set their order (clients read this at install: reinstall if a change doesn't show) |
+| Catalogs | Rename any row, set its order, and set its card orientation: Follow install (the install link decides), Portrait, or Landscape (forced on every install). Names and order are read at install: reinstall if a change doesn't show. Orientation applies on the next catalog refresh |
 
 Alternate TMDB art rotates: each title steps through up to 4 visually distinct textless images, one per day, with change-over times staggered per title so a row changes a card or two at a time. Near-duplicate uploads are screened out, so a title with only one good image stays put. Tune with `artRotationHours` (0 = off) and `artRotationPool` in the Edge Config item. Each change-over re-renders that card once, roughly 0.3 to 0.5s of CPU.
 
