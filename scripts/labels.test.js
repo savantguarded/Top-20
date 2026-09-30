@@ -18,7 +18,7 @@ const { DEFAULTS } = require('../lib/config');
 
 // d days ago (negative = in the future), YYYY-MM-DD on the Lagos calendar.
 const ago = (d) => new Date(Date.now() - d * 864e5).toLocaleDateString('en-CA', { timeZone: 'Africa/Lagos' });
-const weekday = (d) => new Date(`${ago(d)}T00:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' });
+const weekday = (d) => new Date(`${ago(d)}T00:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
 const monthDay = (d) => new Date(`${ago(d)}T00:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 
 const show = DEFAULTS.show;
@@ -46,8 +46,8 @@ check('date 6 days out', formatShortDate(ago(-6)), monthDay(-6));
 check('ep today', computeShowContext(running({ last_episode_to_air: ep(2, 5, 0), next_episode_to_air: ep(2, 6, -7) }), show), 'Airing Today');
 check('ep 1 day ago', computeShowContext(running({ last_episode_to_air: ep(2, 5, 1), next_episode_to_air: ep(2, 6, -6) }), show), 'New Episode');
 check('ep 2 days ago', computeShowContext(running({ last_episode_to_air: ep(2, 5, 2), next_episode_to_air: ep(2, 6, -5) }), show), 'New Episode');
-check('ep 3 days ago', computeShowContext(running({ last_episode_to_air: ep(2, 5, 3), next_episode_to_air: ep(2, 6, -4) }), show), `Next Ep ${weekday(-4)}`);
-check('ep 6 days ago', computeShowContext(running({ last_episode_to_air: ep(2, 5, 6), next_episode_to_air: ep(2, 6, -1) }), show), 'Next Ep Tomorrow');
+check('ep 3 days ago', computeShowContext(running({ last_episode_to_air: ep(2, 5, 3), next_episode_to_air: ep(2, 6, -4) }), show), `Airing ${weekday(-4)}`);
+check('ep 6 days ago', computeShowContext(running({ last_episode_to_air: ep(2, 5, 6), next_episode_to_air: ep(2, 6, -1) }), show), 'Airing Tomorrow');
 check('ep 3 days ago, nothing next', computeShowContext(running({ last_episode_to_air: ep(2, 5, 3) }), show), null);
 
 // Breaks and finales

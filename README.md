@@ -47,7 +47,7 @@ First match wins. Windows live in `DEFAULTS` in `lib/config.js`.
 | Season Finale *date* | Finale airs within 7 days |
 | Season / Series Finale | Finale aired in the last 7 days |
 | New Episode | Episode aired 1 to 2 days ago |
-| Next Ep *date* | Next episode within 7 days |
+| Airing *date* | Next episode within 7 days |
 | Returns *date* | Same, after a gap of over 14 days |
 
 **Coming Soon**
@@ -57,7 +57,7 @@ First match wins. Windows live in `DEFAULTS` in `lib/config.js`.
 | Streaming *date* | Movie's first US digital release, 1 to 30 days out |
 | Premieres / New Season / Returns *date* | Show, 1 to 30 days out |
 
-*date* reads "Tomorrow", then the weekday up to 5 days out ("Fri"), then "Oct 4".
+*date* reads "Tomorrow", then the weekday up to 5 days out ("Friday"), then "Oct 4".
 
 After changing label logic, run `npm test` (`scripts/labels.test.js`, no network needed).
 
