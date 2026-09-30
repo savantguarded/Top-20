@@ -40,7 +40,7 @@ First match wins. Windows live in `DEFAULTS` in `lib/config.js`.
 | --- | --- |
 | Premieres *date* | New series, up to 7 days out |
 | New Season *date* | Season 2+, up to 7 days out |
-| Full Season | Binge drop (finale out on premiere day), for 7 days |
+| Complete Season | Binge drop (finale out on premiere day), for 7 days |
 | Series / Season Premiere | Premiere day only |
 | Airing Today | An episode airs today (finales show as Season / Series Finale) |
 | New Series / New Season | Days 1 to 7 after a weekly premiere |

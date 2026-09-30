@@ -61,8 +61,8 @@ check('series premieres soon', computeShowContext({ first_air_date: ago(-6), sea
 check('season 2 soon', computeShowContext({ first_air_date: '2024-01-01', seasons: s2(-3) }, show), `New Season ${weekday(-3)}`);
 check('weekly premiere day', computeShowContext({ first_air_date: '2024-01-01', seasons: s2(0), last_episode_to_air: ep(2, 1, 0), next_episode_to_air: ep(2, 2, -7) }, show), 'Season Premiere');
 check('weekly premiere +3', computeShowContext({ first_air_date: '2024-01-01', seasons: s2(3), last_episode_to_air: ep(2, 1, 3), next_episode_to_air: ep(2, 2, -4) }, show), 'New Season');
-check('full drop day 0', computeShowContext({ first_air_date: '2024-01-01', seasons: s2(0, 8), last_episode_to_air: ep(2, 8, 0) }, show), 'Full Season');
-check('full drop +5', computeShowContext({ first_air_date: '2024-01-01', seasons: s2(5, 8), last_episode_to_air: ep(2, 8, 5) }, show), 'Full Season');
+check('full drop day 0', computeShowContext({ first_air_date: '2024-01-01', seasons: s2(0, 8), last_episode_to_air: ep(2, 8, 0) }, show), 'Complete Season');
+check('full drop +5', computeShowContext({ first_air_date: '2024-01-01', seasons: s2(5, 8), last_episode_to_air: ep(2, 8, 5) }, show), 'Complete Season');
 
 // Movies
 check('just added', computeMovieContext(ago(2), null, null, movie), 'Just Added');
