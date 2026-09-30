@@ -12,8 +12,8 @@ const file = path.join(__dirname, '..', 'lib', 'tmdb.js');
 const mod = new Module(file);
 mod.filename = file;
 mod.paths = Module._nodeModulePaths(path.dirname(file));
-mod._compile(`${fs.readFileSync(file, 'utf8')}\nmodule.exports.__t = { computeShowContext, computeMovieContext, formatShortDate, comingDigitalDate, comingMovieLabel, classifyComingShow, comingShowLabel, mixComingSoon, isWantedComingShow, alreadyOnSale };`, file);
-const { computeShowContext, computeMovieContext, formatShortDate, comingDigitalDate, comingMovieLabel, classifyComingShow, comingShowLabel, mixComingSoon, isWantedComingShow, alreadyOnSale } = mod.exports.__t;
+mod._compile(`${fs.readFileSync(file, 'utf8')}\nmodule.exports.__t = { computeShowContext, computeMovieContext, formatShortDate, comingDigitalDate, comingMovieLabel, classifyComingShow, comingShowLabel, mixComingSoon, isWantedComingShow, alreadyOnSale, movieNotability, showNotability };`, file);
+const { computeShowContext, computeMovieContext, formatShortDate, comingDigitalDate, comingMovieLabel, classifyComingShow, comingShowLabel, mixComingSoon, isWantedComingShow, alreadyOnSale, movieNotability, showNotability } = mod.exports.__t;
 const { DEFAULTS } = require('../lib/config');
 
 // d days ago (negative = in the future), YYYY-MM-DD on the Lagos calendar.
@@ -104,6 +104,14 @@ check('on sale: future date, already rentable', alreadyOnSale(ago(-3), wp(['rent
 check('on sale: future date, nothing listed', alreadyOnSale(ago(-3), wp([]), 'US'), false);
 check('on sale: future date, streaming only', alreadyOnSale(ago(-3), wp(['flatrate']), 'US'), false);
 check('on sale: release day', alreadyOnSale(ago(0), wp(['rent']), 'US'), false);
+
+const usDates = (...types) => ({ release_dates: { results: [{ iso_3166_1: 'US', release_dates: types.map((type) => ({ type })) }] } });
+check('gate: wide theatrical', movieNotability(usDates(3, 4), 'US', 10), 'wide theatrical');
+check('gate: token run, low popularity', movieNotability(usDates(2, 4), 'US', 1.8), null);
+check('gate: streamer original', movieNotability({ ...usDates(4), production_companies: [{ name: 'Apple Original Films' }] }, 'US', 1), 'streamer original');
+check('gate: US network show', showNotability({ networks: [{ name: 'CBS' }] }), 'CBS');
+check('gate: Canadian network show', showNotability({ networks: [{ name: 'CBC Television' }] }), 'CBC Television');
+check('gate: unknown outlet', showNotability({ networks: [{ name: 'Tiny Streamer' }] }), null);
 
 const it = (type, pop, d) => ({ type, popularity: pop, date: ago(-d), imdbId: `${type}${pop}` });
 const mv = Array.from({ length: 20 }, (_, i) => it('movie', 1000 - i, i));
